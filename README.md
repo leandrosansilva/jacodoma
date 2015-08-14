@@ -1,5 +1,5 @@
 # jacodoma
-JACoDoma stands for Just Another COding DOjo Manager
+JACoDoma stands for Just Another COding DOjo MAnager
 
 On August 2015 some developers at eGym to start a coding dojo in the company and the first programming language we used was Go. As nobody there had reasonable knowledge on this language, it's not hard to imagine the quality of the code they've written.
 
