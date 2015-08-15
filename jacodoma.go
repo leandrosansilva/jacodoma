@@ -8,7 +8,7 @@ import (
 func main() {
 	participants, _ := LoadParticipantsFromFile("users.jcdm")
 
-	for p, _ := range participants {
+	for _, p := range participants {
 		fmt.Println(p)
 	}
 }

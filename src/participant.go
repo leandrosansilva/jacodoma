@@ -37,11 +37,12 @@ func LoadParticipantsFromFile(filename string) ([]Participant, error) {
 	participants := make([]Participant, 0)
 
 	for scanner.Scan() {
-		s := scanner.Text()
-		p, e := ParticipantFromString(s)
+		p, e := ParticipantFromString(scanner.Text())
+
 		if e != nil {
 			return make([]Participant, 0), e
 		}
+
 		participants = append(participants, p)
 	}
 
