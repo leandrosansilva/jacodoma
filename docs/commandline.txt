@@ -1,0 +1,21 @@
+Jacodoma can be operated by a command line interface.
+
+It's possible to choose a project using --project <project_path> 
+or changing the current directory to the project directory and 
+using Jacodoma without those parameters.
+
+$ mkdir my_project
+$ cd my_project
+$ jacodoma create "Prime Factoring"
+$ cat > vim my_project/users.jcdm << EOF
+Manoel Jajar <ma@no.el>
+Juca Juke <juca@ju.ke>
+EOF
+$ vim .jcdmarc # to change project configuration
+$ jacodoma list-users
+Manoel Jajar <ma@no.el>
+Juca Juke <juca@ju.ke>
+$ jacodoma start
+^C
+$ jacodoma stats
+$ jacodoma user-ranking [--dumb|--heroes]
