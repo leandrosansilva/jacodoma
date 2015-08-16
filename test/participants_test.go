@@ -42,7 +42,7 @@ func TestReadParticipantListFromFile(t *testing.T) {
 	Convey("Parse Empty File", t, func() {
 		// FIXME: this won't work on non-unixes systems!
 		participants, e := LoadParticipantsFromFile("/dev/null")
-		So(len(participants), should.Equal, 0)
+		So(participants.Length(), should.Equal, 0)
 		So(e, should.Equal, nil)
 	})
 
@@ -55,16 +55,16 @@ Jon Doe <joe@doe.com>`
 		err := ioutil.WriteFile("/tmp/list_with_4_participants.txt", []byte(fileLines), 0644)
 		So(err, should.Equal, nil)
 		participants, e := LoadParticipantsFromFile("/tmp/list_with_4_participants.txt")
-		So(len(participants), should.Equal, 4)
+		So(participants.Length(), should.Equal, 4)
 		So(e, should.Equal, nil)
-		So(participants[0].Name, should.Equal, "Coding Dojo")
-		So(participants[1].Name, should.Equal, "Manoel Ribas")
-		So(participants[2].Name, should.Equal, "Juka Juke")
-		So(participants[3].Name, should.Equal, "Jon Doe")
-		So(participants[0].Email, should.Equal, "coding@do.jo")
-		So(participants[1].Email, should.Equal, "manoel@ribas.go")
-		So(participants[2].Email, should.Equal, "juka@ju.ke")
-		So(participants[3].Email, should.Equal, "joe@doe.com")
+		So(participants.Get(0).Name, should.Equal, "Coding Dojo")
+		So(participants.Get(1).Name, should.Equal, "Manoel Ribas")
+		So(participants.Get(2).Name, should.Equal, "Juka Juke")
+		So(participants.Get(3).Name, should.Equal, "Jon Doe")
+		So(participants.Get(0).Email, should.Equal, "coding@do.jo")
+		So(participants.Get(1).Email, should.Equal, "manoel@ribas.go")
+		So(participants.Get(2).Email, should.Equal, "juka@ju.ke")
+		So(participants.Get(3).Email, should.Equal, "joe@doe.com")
 	})
 
 	Convey("Error parsing file", t, func() {
@@ -75,7 +75,7 @@ Jon Doe <joe@doe.com>`
 		err := ioutil.WriteFile("/tmp/list_with_3_participants_and_error.txt", []byte(fileLines), 0644)
 		So(err, should.Equal, nil)
 		participants, e := LoadParticipantsFromFile("/tmp/list_with_3_participants_and_error")
-		So(len(participants), should.Equal, 0)
+		So(participants.Length(), should.Equal, 0)
 		So(e, should.NotEqual, nil)
 	})
 

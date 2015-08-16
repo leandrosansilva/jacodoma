@@ -12,22 +12,36 @@ type Participant struct {
 	Email string
 }
 
+type Participants struct {
+	participants []Participant
+}
+
+func (P *Participants) Length() int {
+	return len(P.participants)
+}
+
+func (P *Participants) Get(index int) Participant {
+	return P.participants[index]
+}
+
 func ParticipantFromString(s string) (Participant, error) {
-	re := regexp.MustCompile("(.*)[[:space:]]+<(.*)>")
+	re := regexp.MustCompile("(.*) <(.*)>")
 	matches := re.FindStringSubmatch(s)
 
 	if len(matches) != 3 {
-		return Participant{"", ""}, errors.New("Invalid Line")
+		return Participant{"", ""}, errors.New("Ill-formed line: \"" + s + "\"")
 	}
 
 	return Participant{matches[1], matches[2]}, nil
 }
 
-func LoadParticipantsFromFile(filename string) ([]Participant, error) {
+func LoadParticipantsFromFile(filename string) (Participants, error) {
 	file, e := os.Open(filename)
 
+	var empty Participants
+
 	if e != nil {
-		return make([]Participant, 0), e
+		return empty, e
 	}
 
 	defer file.Close()
@@ -40,11 +54,11 @@ func LoadParticipantsFromFile(filename string) ([]Participant, error) {
 		p, e := ParticipantFromString(scanner.Text())
 
 		if e != nil {
-			return make([]Participant, 0), e
+			return empty, e
 		}
 
 		participants = append(participants, p)
 	}
 
-	return participants, nil
+	return Participants{participants}, nil
 }
