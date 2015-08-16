@@ -25,7 +25,7 @@ func (P *Participants) Get(index int) Participant {
 }
 
 func ParticipantFromString(s string) (Participant, error) {
-	re := regexp.MustCompile("(.*) <(.*)>")
+	re := regexp.MustCompile("^[[:space:]]*(.*[^[:space:]])[[:space:]]*<(.*)>")
 	matches := re.FindStringSubmatch(s)
 
 	if len(matches) != 3 {
@@ -61,4 +61,8 @@ func LoadParticipantsFromFile(filename string) (Participants, error) {
 	}
 
 	return Participants{participants}, nil
+}
+
+func BuildParticipantsFromArray(participants []Participant) Participants {
+	return Participants{participants}
 }
