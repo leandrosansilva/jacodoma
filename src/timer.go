@@ -4,8 +4,7 @@ import (
 	"time"
 )
 
-type ITimerLogic interface {
-	OnCriticalTimeHasReached(t time.Time)
+type ITurnLogic interface {
 	OnStarted(t time.Time)
 	OnTimeGetsCritical(t time.Time)
 	OnNextParticipantStarts(t time.Time, p Participant)
@@ -13,7 +12,6 @@ type ITimerLogic interface {
 	OnStartsWaitingNextParticipant(t time.Time)
 	NextParticipant() Participant
 	CurrentParticipant() Participant
-	TimeChannel() chan time.Time
 	HasFinished() bool
 }
 
@@ -23,12 +21,12 @@ type TurnTimeInfo struct {
 }
 
 type Timer struct {
-	logic ITimerLogic
+	logic ITurnLogic
 }
 
-func (t *Timer) Run() {
+func (timer *Timer) Step(time time.Time) {
 }
 
-func NewTimer(logic ITimerLogic) *Timer {
+func NewTimer(logic ITurnLogic) *Timer {
 	return &Timer{logic}
 }

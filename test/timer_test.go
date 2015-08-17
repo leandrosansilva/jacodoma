@@ -8,61 +8,64 @@ import (
 	"time"
 )
 
-type FakeTimerActions struct {
-	Time   time.Time
-	Action string
+type FakeTimerAction struct {
+	Time        time.Time
+	Action      string
+	Participant Participant
 }
 
-type FakeTimerLogic struct {
-	TurnTimeInfo TurnTimeInfo
-	Participants Participants
-	timeChannel  chan time.Time
-	Actions      []FakeTimerActions
+type FakeTurnLogic struct {
+	TurnTimeInfo            TurnTimeInfo
+	Participants            Participants
+	Actions                 []FakeTimerAction
+	CurrentParticipantIndex int
 }
 
-func (logic *FakeTimerLogic) OnStarted(t time.Time) {
+func (logic *FakeTurnLogic) OnStarted(t time.Time) {
+	logic.Actions = append(logic.Actions, FakeTimerAction{t, "started", Participant{}})
 }
 
-func (logic *FakeTimerLogic) OnTimeGetsCritical(t time.Time) {
+func (logic *FakeTurnLogic) OnTimeGetsCritical(t time.Time) {
+	logic.Actions = append(logic.Actions, FakeTimerAction{t, "time_critical", Participant{}})
 }
 
-func (logic *FakeTimerLogic) OnNextParticipantStarts(t time.Time, p Participant) {
+func (logic *FakeTurnLogic) OnNextParticipantStarts(t time.Time, p Participant) {
+	logic.Actions = append(logic.Actions, FakeTimerAction{t, "next_participant", p})
+	logic.CurrentParticipantIndex = (logic.CurrentParticipantIndex + 1) % logic.Participants.Length()
 }
 
-func (logic *FakeTimerLogic) OnCriticalTimeHasReached(t time.Time) {
+func (logic *FakeTurnLogic) OnTimeIsOver(t time.Time) {
+	logic.Actions = append(logic.Actions, FakeTimerAction{t, "time_over", Participant{}})
 }
 
-func (logic *FakeTimerLogic) OnTimeIsOver(t time.Time) {
+func (logic *FakeTurnLogic) OnStartsWaitingNextParticipant(t time.Time) {
+	logic.Actions = append(logic.Actions, FakeTimerAction{t, "waiting_next_participant", Participant{}})
 }
 
-func (logic *FakeTimerLogic) OnStartsWaitingNextParticipant(t time.Time) {
-}
-
-func (logic *FakeTimerLogic) TimeChannel() chan time.Time {
-	return logic.timeChannel
-}
-
-func (logic *FakeTimerLogic) HasFinished() bool {
+func (logic *FakeTurnLogic) HasFinished() bool {
 	return true
 }
 
-func (logic *FakeTimerLogic) NextParticipant() Participant {
-	return Participant{}
+func (logic *FakeTurnLogic) NextParticipant() Participant {
+	// FIXME: code repetition
+	return logic.Participants.Get((logic.CurrentParticipantIndex + 1) % logic.Participants.Length())
 }
 
-func (logic *FakeTimerLogic) CurrentParticipant() Participant {
-	return Participant{}
+func (logic *FakeTurnLogic) CurrentParticipant() Participant {
+	return logic.Participants.Get(logic.CurrentParticipantIndex)
 }
 
-func NewFakeTimerLogic(info TurnTimeInfo, participants Participants) *FakeTimerLogic {
-	return &FakeTimerLogic{
+func NewFakeTurnLogic(info TurnTimeInfo, participants Participants) *FakeTurnLogic {
+	return &FakeTurnLogic{
 		info, participants,
-		make(chan time.Time),
-		make([]FakeTimerActions, 0)}
+		make([]FakeTimerAction, 0),
+		0}
 }
 
-func runFakeTurns(logic *FakeTimerLogic, numberOfTurns int) {
-
+func ExecuteTimer(timer *Timer, begin, end time.Time, duration time.Duration) {
+	for t := begin; t.Unix() < end.Unix(); t = t.Add(duration) {
+		timer.Step(t)
+	}
 }
 
 func TestTimer(t *testing.T) {
@@ -76,15 +79,39 @@ func TestTimer(t *testing.T) {
 
 		turnInfo := TurnTimeInfo{5 * 60, 4.5 * 60}
 
-		logic := NewFakeTimerLogic(turnInfo, participants)
+		logic := NewFakeTurnLogic(turnInfo, participants)
 		timer := NewTimer(logic)
 		So(timer, should.NotEqual, nil)
 
-		go runFakeTurns(logic, 1)
+		begin := time.Unix(1000, 0)
 
-		timer.Run()
+		// runs for 6min
+		ExecuteTimer(
+			timer, begin, begin.Add(6*time.Minute),
+			100*time.Millisecond)
 
 		// TODO: test the time when each event happened
-		//So(logic.)
+		So(len(logic.Actions), should.NotEqual, 0)
+
+		// starts in the very beginning
+		So(logic.Actions[0].Time, should.Equal, begin)
+		So(logic.Actions[0].Action, should.Equal, "started")
+
+		// first user starts after 5sec
+		So(logic.Actions[1].Time, should.Equal, begin.Add(5*time.Second))
+		So(logic.Actions[1].Action, should.Equal, "next_participant")
+		So(logic.Actions[1].Participant.Email, should.Equal, "coding@do.jo")
+
+		// on 4:30 time gets critical
+		So(logic.Actions[2].Time, should.Equal, begin.Add(270*time.Second))
+		So(logic.Actions[2].Action, should.Equal, "time_critical")
+
+		// on 5:00 time is over
+		So(logic.Actions[3].Time, should.Equal, begin.Add(300*time.Second))
+		So(logic.Actions[3].Action, should.Equal, "time_over")
+
+		// on 5:20 time is over
+		So(logic.Actions[4].Time, should.Equal, begin.Add(320*time.Second))
+		So(logic.Actions[4].Action, should.Equal, "waiting_next_participant")
 	})
 }
