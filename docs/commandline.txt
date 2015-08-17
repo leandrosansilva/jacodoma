@@ -7,7 +7,7 @@ using Jacodoma without those parameters.
 $ mkdir my_project
 $ cd my_project
 $ jacodoma create "Prime Factoring"
-$ cat > vim my_project/users.jcdm << EOF
+$ cat > users.jcdm << EOF
 Manoel Jajar <ma@no.el>
 Juca Juke <juca@ju.ke>
 EOF
