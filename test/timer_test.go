@@ -2,6 +2,7 @@ package jacodoma
 
 import (
 	. "../src/"
+	"fmt"
 	"github.com/smartystreets/assertions/should"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
@@ -15,35 +16,31 @@ type FakeTimerAction struct {
 }
 
 type FakeTurnLogic struct {
-	TurnTimeInfo            TurnTimeInfo
+	info                    TurnTimeInfo
 	Participants            Participants
 	Actions                 []FakeTimerAction
 	CurrentParticipantIndex int
 }
 
-func (logic *FakeTurnLogic) OnStarted(t time.Time) {
-	logic.Actions = append(logic.Actions, FakeTimerAction{t, "started", Participant{}})
-}
-
 func (logic *FakeTurnLogic) OnTimeGetsCritical(t time.Time) {
+	fmt.Printf("Changed to critical on %s\n", t)
 	logic.Actions = append(logic.Actions, FakeTimerAction{t, "time_critical", Participant{}})
 }
 
 func (logic *FakeTurnLogic) OnNextParticipantStarts(t time.Time, p Participant) {
+	fmt.Printf("next starts on %s\n", t)
 	logic.Actions = append(logic.Actions, FakeTimerAction{t, "next_participant", p})
 	logic.CurrentParticipantIndex = (logic.CurrentParticipantIndex + 1) % logic.Participants.Length()
 }
 
 func (logic *FakeTurnLogic) OnTimeIsOver(t time.Time) {
+	fmt.Printf("time is over on %s\n", t)
 	logic.Actions = append(logic.Actions, FakeTimerAction{t, "time_over", Participant{}})
 }
 
 func (logic *FakeTurnLogic) OnStartsWaitingNextParticipant(t time.Time) {
+	fmt.Printf("waits next on %s\n", t)
 	logic.Actions = append(logic.Actions, FakeTimerAction{t, "waiting_next_participant", Participant{}})
-}
-
-func (logic *FakeTurnLogic) HasFinished() bool {
-	return true
 }
 
 func (logic *FakeTurnLogic) NextParticipant() Participant {
@@ -55,11 +52,18 @@ func (logic *FakeTurnLogic) CurrentParticipant() Participant {
 	return logic.Participants.Get(logic.CurrentParticipantIndex)
 }
 
+func (logic *FakeTurnLogic) TurnTimeInfo() *TurnTimeInfo {
+	return &logic.info
+}
+
+func (logic *FakeTurnLogic) NextParticipantIsReady() bool {
+	return true
+}
+
 func NewFakeTurnLogic(info TurnTimeInfo, participants Participants) *FakeTurnLogic {
 	return &FakeTurnLogic{
 		info, participants,
-		make([]FakeTimerAction, 0),
-		0}
+		make([]FakeTimerAction, 0), 0}
 }
 
 func ExecuteTimer(timer *Timer, begin, end time.Time, duration time.Duration) {
@@ -77,13 +81,12 @@ func TestTimer(t *testing.T) {
 			{"Jon Doe", "joe@doe.com"},
 		})
 
-		turnInfo := TurnTimeInfo{5 * 60, 4.5 * 60}
+		begin := time.Unix(1000, 0)
+		turnInfo := TurnTimeInfo{270 * time.Second, 30 * time.Second}
 
 		logic := NewFakeTurnLogic(turnInfo, participants)
 		timer := NewTimer(logic)
 		So(timer, should.NotEqual, nil)
-
-		begin := time.Unix(1000, 0)
 
 		// runs for 6min
 		ExecuteTimer(
@@ -91,27 +94,23 @@ func TestTimer(t *testing.T) {
 			100*time.Millisecond)
 
 		// TODO: test the time when each event happened
-		So(len(logic.Actions), should.NotEqual, 0)
-
-		// starts in the very beginning
-		So(logic.Actions[0].Time, should.Equal, begin)
-		So(logic.Actions[0].Action, should.Equal, "started")
+		//So(len(logic.Actions), should.Equal, 3)
 
 		// first user starts after 5sec
-		So(logic.Actions[1].Time, should.Equal, begin.Add(5*time.Second))
-		So(logic.Actions[1].Action, should.Equal, "next_participant")
-		So(logic.Actions[1].Participant.Email, should.Equal, "coding@do.jo")
+		So(logic.Actions[0].Time, should.Equal, begin.Add(5*time.Second))
+		So(logic.Actions[0].Action, should.Equal, "next_participant")
+		So(logic.Actions[0].Participant.Email, should.Equal, "coding@do.jo")
 
 		// on 4:30 time gets critical
-		So(logic.Actions[2].Time, should.Equal, begin.Add(270*time.Second))
-		So(logic.Actions[2].Action, should.Equal, "time_critical")
+		So(logic.Actions[1].Time, should.Equal, begin.Add(270*time.Second))
+		So(logic.Actions[1].Action, should.Equal, "time_critical")
 
 		// on 5:00 time is over
-		So(logic.Actions[3].Time, should.Equal, begin.Add(300*time.Second))
-		So(logic.Actions[3].Action, should.Equal, "time_over")
+		So(logic.Actions[2].Time, should.Equal, begin.Add(300*time.Second))
+		So(logic.Actions[2].Action, should.Equal, "time_over")
 
 		// on 5:20 time is over
-		So(logic.Actions[4].Time, should.Equal, begin.Add(320*time.Second))
-		So(logic.Actions[4].Action, should.Equal, "waiting_next_participant")
+		So(logic.Actions[2].Time, should.Equal, begin.Add(320*time.Second))
+		So(logic.Actions[2].Action, should.Equal, "waiting_next_participant")
 	})
 }

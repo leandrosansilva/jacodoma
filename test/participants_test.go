@@ -10,6 +10,16 @@ import (
 )
 
 func TestParseParticipants(t *testing.T) {
+	Convey("User is Valid", t, func() {
+		p, _ := ParticipantFromString("Coding Dojo <coding@do.jo>")
+		So(p.Valid(), should.Equal, true)
+	})
+
+	Convey("User is Invalid", t, func() {
+		p, _ := ParticipantFromString("Coding Dojo")
+		So(p.Valid(), should.Equal, false)
+	})
+
 	Convey("Parse line Coding Dojo", t, func() {
 		p, e := ParticipantFromString("Coding Dojo <coding@do.jo>")
 		So(e, should.Equal, nil)

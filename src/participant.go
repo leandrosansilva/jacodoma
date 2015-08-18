@@ -24,6 +24,10 @@ func (P *Participants) Get(index int) Participant {
 	return P.participants[index]
 }
 
+func (P *Participant) Valid() bool {
+	return len(P.Name) > 0 && len(P.Email) > 0
+}
+
 func ParticipantFromString(s string) (Participant, error) {
 	re := regexp.MustCompile("^[[:space:]]*(.*[^[:space:]])[[:space:]]*<(.*)>")
 	matches := re.FindStringSubmatch(s)
