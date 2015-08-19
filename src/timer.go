@@ -105,7 +105,7 @@ func (state *TimerTimeIsOk) ChangeToState(logic ITurnLogic, t time.Time) TimerIn
 		state.Begin = t
 	}
 
-	if state.Begin.Add(logic.TurnTimeInfo().RelaxAndCodeDuration).After(t) {
+	if state.Begin.Add(logic.TurnTimeInfo().RelaxAndCodeDuration).Before(t) {
 		logic.OnTimeGetsCritical(t)
 		state.Begin = time.Time{}
 		return STATE_TIME_IS_CRITICAL
@@ -119,7 +119,7 @@ func (state *TimerTimeIsCritical) ChangeToState(logic ITurnLogic, t time.Time) T
 		state.Begin = t
 	}
 
-	if state.Begin.Add(logic.TurnTimeInfo().HurryUpDuration).After(t) {
+	if state.Begin.Add(logic.TurnTimeInfo().HurryUpDuration).Before(t) {
 		logic.OnTimeIsOver(t)
 		state.Begin = time.Time{}
 		return STATE_TIME_IS_OVER

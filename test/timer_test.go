@@ -27,11 +27,11 @@ func printTime(t time.Time, ev string) {
 }
 
 func pt(t time.Time) string {
-	return fmt.Sprintf("%d:%d.%d", t.Minute(), t.Second(), t.Nanosecond())
+	return fmt.Sprintf("%d:%d", t.Minute(), t.Second())
 }
 
 func (logic *FakeTurnLogic) OnTimeGetsCritical(t time.Time) {
-
+	printTime(t, "times critical")
 	logic.Actions = append(logic.Actions, FakeTimerAction{t, "time_critical", Participant{}})
 }
 
@@ -101,9 +101,6 @@ func TestTimer(t *testing.T) {
 		ExecuteTimer(
 			timer, begin, begin.Add(5*time.Minute+1*time.Second),
 			100*time.Millisecond)
-
-		// TODO: test the time when each event happened
-		//So(len(logic.Actions), should.Equal, 3)
 
 		Convey("User starts on 0sec", func() {
 			So(logic.Actions[0].Action, should.Equal, "next_participant")
