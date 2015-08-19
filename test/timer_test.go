@@ -22,24 +22,31 @@ type FakeTurnLogic struct {
 	CurrentParticipantIndex int
 }
 
+func printTime(t time.Time, ev string) {
+	//fmt.Printf("EV: %s TIME: %s SEC: %d and NS: %d\n", ev, t, t.Second(), t.Nanosecond())
+}
+
+func pt(t time.Time) string {
+	return fmt.Sprintf("%d:%d.%d", t.Minute(), t.Second(), t.Nanosecond())
+}
+
 func (logic *FakeTurnLogic) OnTimeGetsCritical(t time.Time) {
-	fmt.Printf("Changed to critical on %s\n", t)
+
 	logic.Actions = append(logic.Actions, FakeTimerAction{t, "time_critical", Participant{}})
 }
 
 func (logic *FakeTurnLogic) OnNextParticipantStarts(t time.Time, p Participant) {
-	fmt.Printf("next starts on %s\n", t)
+	printTime(t, "next starts")
 	logic.Actions = append(logic.Actions, FakeTimerAction{t, "next_participant", p})
-	logic.CurrentParticipantIndex = (logic.CurrentParticipantIndex + 1) % logic.Participants.Length()
 }
 
 func (logic *FakeTurnLogic) OnTimeIsOver(t time.Time) {
-	fmt.Printf("time is over on %s\n", t)
+	printTime(t, "time over")
 	logic.Actions = append(logic.Actions, FakeTimerAction{t, "time_over", Participant{}})
 }
 
 func (logic *FakeTurnLogic) OnStartsWaitingNextParticipant(t time.Time) {
-	fmt.Printf("waits next on %s\n", t)
+	printTime(t, "starts waiting")
 	logic.Actions = append(logic.Actions, FakeTimerAction{t, "waiting_next_participant", Participant{}})
 }
 
@@ -81,36 +88,37 @@ func TestTimer(t *testing.T) {
 			{"Jon Doe", "joe@doe.com"},
 		})
 
-		begin := time.Unix(1000, 0)
+		begin := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+
+		// Turn lasts 5min and the last 30sec are "critical"
 		turnInfo := TurnTimeInfo{270 * time.Second, 30 * time.Second}
 
 		logic := NewFakeTurnLogic(turnInfo, participants)
 		timer := NewTimer(logic)
 		So(timer, should.NotEqual, nil)
 
-		// runs for 6min
+		// runs for 5:01 min
 		ExecuteTimer(
-			timer, begin, begin.Add(6*time.Minute),
+			timer, begin, begin.Add(5*time.Minute+1*time.Second),
 			100*time.Millisecond)
 
 		// TODO: test the time when each event happened
 		//So(len(logic.Actions), should.Equal, 3)
 
-		// first user starts after 5sec
-		So(logic.Actions[0].Time, should.Equal, begin.Add(5*time.Second))
-		So(logic.Actions[0].Action, should.Equal, "next_participant")
-		So(logic.Actions[0].Participant.Email, should.Equal, "coding@do.jo")
+		Convey("User starts on 0sec", func() {
+			So(logic.Actions[0].Action, should.Equal, "next_participant")
+			So(logic.Actions[0].Participant.Email, should.Equal, "coding@do.jo")
+			So(pt(logic.Actions[0].Time), should.Equal, pt(begin))
+		})
 
-		// on 4:30 time gets critical
-		So(logic.Actions[1].Time, should.Equal, begin.Add(270*time.Second))
-		So(logic.Actions[1].Action, should.Equal, "time_critical")
+		Convey("Time gets critical on 4:30", func() {
+			So(logic.Actions[1].Action, should.Equal, "time_critical")
+			So(pt(logic.Actions[1].Time), should.Equal, pt(begin.Add(270*time.Second)))
+		})
 
-		// on 5:00 time is over
-		So(logic.Actions[2].Time, should.Equal, begin.Add(300*time.Second))
-		So(logic.Actions[2].Action, should.Equal, "time_over")
-
-		// on 5:20 time is over
-		So(logic.Actions[2].Time, should.Equal, begin.Add(320*time.Second))
-		So(logic.Actions[2].Action, should.Equal, "waiting_next_participant")
+		Convey("Time is over on 5:00", func() {
+			So(logic.Actions[2].Action, should.Equal, "time_over")
+			So(pt(logic.Actions[2].Time), should.Equal, pt(begin.Add(300*time.Second)))
+		})
 	})
 }

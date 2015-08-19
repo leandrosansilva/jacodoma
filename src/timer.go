@@ -1,7 +1,6 @@
 package jacodoma
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -75,12 +74,12 @@ type TimerTimeIsOver struct {
 }
 
 func NewTimer(logic ITurnLogic) *Timer {
-	timer := &Timer{logic, STATE_WAITING_NEXT_PARTICIPANT, StatesMap{}}
-
-	timer.States[STATE_WAITING_NEXT_PARTICIPANT] = &TimerWaitingNextParticipant{}
-	timer.States[STATE_TIME_IS_OK] = &TimerTimeIsOk{}
-	timer.States[STATE_TIME_IS_CRITICAL] = &TimerTimeIsCritical{}
-	timer.States[STATE_TIME_IS_OVER] = &TimerTimeIsOver{}
+	timer := &Timer{logic, STATE_WAITING_NEXT_PARTICIPANT, StatesMap{
+		STATE_WAITING_NEXT_PARTICIPANT: &TimerWaitingNextParticipant{},
+		STATE_TIME_IS_OK:               &TimerTimeIsOk{},
+		STATE_TIME_IS_CRITICAL:         &TimerTimeIsCritical{},
+		STATE_TIME_IS_OVER:             &TimerTimeIsOver{},
+	}}
 
 	return timer
 }
@@ -101,28 +100,28 @@ func (state *TimerWaitingNextParticipant) ChangeToState(logic ITurnLogic, time t
 	return STATE_WAITING_NEXT_PARTICIPANT
 }
 
-func (state *TimerTimeIsOk) ChangeToState(logic ITurnLogic, time time.Time) TimerInternalStateLabel {
+func (state *TimerTimeIsOk) ChangeToState(logic ITurnLogic, t time.Time) TimerInternalStateLabel {
 	if state.Begin.IsZero() {
-		fmt.Printf("ok started in %s\n", time)
-		state.Begin = time
+		state.Begin = t
 	}
 
-	if state.Begin.Add(logic.TurnTimeInfo().RelaxAndCodeDuration).After(time) {
-		logic.OnTimeGetsCritical(time)
+	if state.Begin.Add(logic.TurnTimeInfo().RelaxAndCodeDuration).After(t) {
+		logic.OnTimeGetsCritical(t)
+		state.Begin = time.Time{}
 		return STATE_TIME_IS_CRITICAL
 	}
 
 	return STATE_TIME_IS_OK
 }
 
-func (state *TimerTimeIsCritical) ChangeToState(logic ITurnLogic, time time.Time) TimerInternalStateLabel {
+func (state *TimerTimeIsCritical) ChangeToState(logic ITurnLogic, t time.Time) TimerInternalStateLabel {
 	if state.Begin.IsZero() {
-		fmt.Printf("critical started in %s\n", time)
-		state.Begin = time
+		state.Begin = t
 	}
 
-	if state.Begin.Add(logic.TurnTimeInfo().HurryUpDuration).After(time) {
-		logic.OnTimeIsOver(time)
+	if state.Begin.Add(logic.TurnTimeInfo().HurryUpDuration).After(t) {
+		logic.OnTimeIsOver(t)
+		state.Begin = time.Time{}
 		return STATE_TIME_IS_OVER
 	}
 
