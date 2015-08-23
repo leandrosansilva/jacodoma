@@ -38,21 +38,66 @@ type ITimerIntenalState interface {
 	ChangeToState(ITurnLogic, time.Time) TimerInternalStateLabel
 }
 
+type DurationChannel chan time.Duration
+
 type StatesMap map[TimerInternalStateLabel]ITimerIntenalState
 
+type TurnContext struct {
+	Begin        time.Time
+	CriticalTime time.Time
+	LastDuration time.Duration
+}
+
+func (this *TurnContext) SetTurnBeginIfNotDefined(t time.Time) {
+	if this.Begin.IsZero() {
+		this.Begin = t
+	}
+}
+
+func (this *TurnContext) SetCriticalBeginIfNotDefined(t time.Time) {
+	if this.CriticalTime.IsZero() {
+		this.CriticalTime = t
+		this.LastDuration = 0
+	}
+}
+
+func (this *TurnContext) Reset() {
+	this.CriticalTime = time.Time{}
+	this.Begin = time.Time{}
+}
+
+func (this *TurnContext) Update(channel DurationChannel, t time.Time) {
+	if this.Begin.IsZero() {
+		return
+	}
+
+	// time elapsed since the turn begin
+	d := t.Sub(this.Begin)
+
+	s := d / time.Second
+
+	if s != this.LastDuration/time.Second || this.LastDuration == 0 {
+		this.LastDuration = d
+		channel <- d
+	}
+}
+
 type Timer struct {
+	Context           *TurnContext
 	TurnLogic         ITurnLogic
 	CurrentStateLabel TimerInternalStateLabel
 	States            StatesMap
+	DurationChannel   DurationChannel
 }
 
 func (timer *Timer) CurrentState() ITimerIntenalState {
 	return timer.States[timer.CurrentStateLabel]
 }
 
-func (timer *Timer) Step(time time.Time) {
+func (timer *Timer) Step(t time.Time) {
 	currentState := timer.CurrentState()
-	timer.CurrentStateLabel = currentState.ChangeToState(timer.TurnLogic, time)
+	timer.CurrentStateLabel = currentState.ChangeToState(timer.TurnLogic, t)
+	timer.Context.Update(timer.DurationChannel, t)
 }
 
 // Implementing states
@@ -63,23 +108,24 @@ type TimerWaitingNextParticipant struct {
 }
 
 type TimerTimeIsOkState struct {
-	Begin time.Time
+	Context *TurnContext
 }
 
 type TimerTimeIsCriticalState struct {
-	Begin time.Time
+	Context *TurnContext
 }
 
 type TimerTimeIsOverState struct {
 }
 
-func NewTimer(logic ITurnLogic) *Timer {
-	timer := &Timer{logic, STATE_WAITING_NEXT_PARTICIPANT, StatesMap{
+func NewTimer(logic ITurnLogic, channel DurationChannel) *Timer {
+	context := &TurnContext{}
+	timer := &Timer{context, logic, STATE_WAITING_NEXT_PARTICIPANT, StatesMap{
 		STATE_WAITING_NEXT_PARTICIPANT: &TimerWaitingNextParticipant{},
-		STATE_TIME_IS_OK:               &TimerTimeIsOkState{},
-		STATE_TIME_IS_CRITICAL:         &TimerTimeIsCriticalState{},
+		STATE_TIME_IS_OK:               &TimerTimeIsOkState{context},
+		STATE_TIME_IS_CRITICAL:         &TimerTimeIsCriticalState{context},
 		STATE_TIME_IS_OVER:             &TimerTimeIsOverState{},
-	}}
+	}, channel}
 
 	return timer
 }
@@ -99,13 +145,10 @@ func (this *TimerWaitingNextParticipant) ChangeToState(logic ITurnLogic, time ti
 }
 
 func (this *TimerTimeIsOkState) ChangeToState(logic ITurnLogic, t time.Time) TimerInternalStateLabel {
-	if this.Begin.IsZero() {
-		this.Begin = t
-	}
+	this.Context.SetTurnBeginIfNotDefined(t)
 
-	if this.Begin.Add(logic.TurnTimeInfo().RelaxAndCodeDuration).Before(t) {
+	if this.Context.Begin.Add(logic.TurnTimeInfo().RelaxAndCodeDuration).Before(t) {
 		logic.OnTimeGetsCritical(t)
-		this.Begin = time.Time{}
 		return STATE_TIME_IS_CRITICAL
 	}
 
@@ -113,13 +156,11 @@ func (this *TimerTimeIsOkState) ChangeToState(logic ITurnLogic, t time.Time) Tim
 }
 
 func (this *TimerTimeIsCriticalState) ChangeToState(logic ITurnLogic, t time.Time) TimerInternalStateLabel {
-	if this.Begin.IsZero() {
-		this.Begin = t
-	}
+	this.Context.SetCriticalBeginIfNotDefined(t)
 
-	if this.Begin.Add(logic.TurnTimeInfo().HurryUpDuration).Before(t) {
+	if this.Context.CriticalTime.Add(logic.TurnTimeInfo().HurryUpDuration).Before(t) {
 		logic.OnTimeIsOver(t)
-		this.Begin = time.Time{}
+		this.Context.Reset()
 		return STATE_TIME_IS_OVER
 	}
 

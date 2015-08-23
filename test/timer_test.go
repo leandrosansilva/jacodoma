@@ -87,7 +87,7 @@ func (this *TimerExecutor) Execute(end time.Time, readyTime time.Time) {
 	t := this.Time
 	readyIsSet := false
 
-	for ; end.After(t); t = t.Add(100 * time.Millisecond) {
+	for ; t.Before(end); t = t.Add(100 * time.Millisecond) {
 		if readyTime.Second() == t.Second() && !readyIsSet {
 			this.Logic.ParticipantIsReady = true
 			this.Timer.Step(t)
@@ -103,6 +103,18 @@ func (this *TimerExecutor) Execute(end time.Time, readyTime time.Time) {
 	this.Time = t
 }
 
+type FakeTimerUi struct {
+	times []time.Duration
+}
+
+func NewFakeTimerUi() *FakeTimerUi {
+	return &FakeTimerUi{}
+}
+
+func (ui *FakeTimerUi) Update(d time.Duration) {
+	ui.times = append(ui.times, d)
+}
+
 func TestCodingDojoWithFourParticipants(t *testing.T) {
 	// Turn lasts 5min and the last 30secs are "critical"
 	turnInfo := TurnTimeInfo{270 * time.Second, 30 * time.Second}
@@ -114,15 +126,34 @@ func TestCodingDojoWithFourParticipants(t *testing.T) {
 		{"Jon Doe", "joe@doe.com"},
 	}))
 
-	timer := NewTimer(logic)
+	channel := make(DurationChannel, 0)
 
-	ex := NewTimerExecutor(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), timer, logic)
+	ui := NewFakeTimerUi()
+
+	// user interface loop
+	go func() {
+		for {
+			s := <-channel
+
+			if s == -1 {
+				return
+			}
+
+			ui.Update(s)
+		}
+	}()
+
+	timer := NewTimer(logic, channel)
+
+	genesis := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	ex := NewTimerExecutor(genesis, timer, logic)
 
 	Convey("Test Timer with 4 users", t, func() {
 		Convey("First Participant Turn", func() {
 			begin := ex.Time
 
-			// runs from 00:00 to 05:01
+			// runs from 00:00 to 05:11
 			ex.Execute(begin.Add(5*time.Minute+20*time.Second), begin.Add(10*time.Second))
 
 			So(len(logic.Actions), should.Equal, 4)
@@ -163,6 +194,13 @@ func TestCodingDojoWithFourParticipants(t *testing.T) {
 
 			So(logic.Actions[7].Action, should.Equal, "block_session")
 			So(pt(logic.Actions[7].Time), should.Equal, pt(begin.Add(340*time.Second+100*time.Millisecond)))
+		})
+
+		Convey("Times received by the timer", func() {
+			channel <- -1
+			d := ex.Time.Sub(genesis)
+			So(d, should.Equal, time.Second*680)
+			So(len(ui.times), should.Equal, 604)
 		})
 	})
 }
