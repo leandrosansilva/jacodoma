@@ -20,9 +20,9 @@ type ITurnLogic interface {
 	OnTimeIsOver(time.Time)
 	OnStartsWaitingNextParticipant(time.Time)
 	NextParticipant() Participant
-	CurrentParticipant() Participant
 	TurnTimeInfo() *TurnTimeInfo
 	NextParticipantIsReady() bool
+	BlockSession(time.Time)
 }
 
 type TimerInternalStateLabel int
@@ -56,82 +56,77 @@ func (timer *Timer) Step(time time.Time) {
 }
 
 // Implementing states
-type TimerStartedStated struct {
+type TimerStartedState struct {
 }
 
 type TimerWaitingNextParticipant struct {
 }
 
-type TimerTimeIsOk struct {
+type TimerTimeIsOkState struct {
 	Begin time.Time
 }
 
-type TimerTimeIsCritical struct {
+type TimerTimeIsCriticalState struct {
 	Begin time.Time
 }
 
-type TimerTimeIsOver struct {
+type TimerTimeIsOverState struct {
 }
 
 func NewTimer(logic ITurnLogic) *Timer {
 	timer := &Timer{logic, STATE_WAITING_NEXT_PARTICIPANT, StatesMap{
 		STATE_WAITING_NEXT_PARTICIPANT: &TimerWaitingNextParticipant{},
-		STATE_TIME_IS_OK:               &TimerTimeIsOk{},
-		STATE_TIME_IS_CRITICAL:         &TimerTimeIsCritical{},
-		STATE_TIME_IS_OVER:             &TimerTimeIsOver{},
+		STATE_TIME_IS_OK:               &TimerTimeIsOkState{},
+		STATE_TIME_IS_CRITICAL:         &TimerTimeIsCriticalState{},
+		STATE_TIME_IS_OVER:             &TimerTimeIsOverState{},
 	}}
 
 	return timer
 }
 
-func (state *TimerStartedStated) ChangeToState(logic ITurnLogic, time time.Time) TimerInternalStateLabel {
+func (this *TimerStartedState) ChangeToState(logic ITurnLogic, time time.Time) TimerInternalStateLabel {
 	logic.OnStartsWaitingNextParticipant(time)
 	return STATE_WAITING_NEXT_PARTICIPANT
 }
 
-func (state *TimerWaitingNextParticipant) ChangeToState(logic ITurnLogic, time time.Time) TimerInternalStateLabel {
-	participant := logic.CurrentParticipant()
-
-	if participant.Valid() {
-		logic.OnNextParticipantStarts(time, logic.CurrentParticipant())
+func (this *TimerWaitingNextParticipant) ChangeToState(logic ITurnLogic, time time.Time) TimerInternalStateLabel {
+	if logic.NextParticipantIsReady() {
+		logic.OnNextParticipantStarts(time, logic.NextParticipant())
 		return STATE_TIME_IS_OK
 	}
 
 	return STATE_WAITING_NEXT_PARTICIPANT
 }
 
-func (state *TimerTimeIsOk) ChangeToState(logic ITurnLogic, t time.Time) TimerInternalStateLabel {
-	if state.Begin.IsZero() {
-		state.Begin = t
+func (this *TimerTimeIsOkState) ChangeToState(logic ITurnLogic, t time.Time) TimerInternalStateLabel {
+	if this.Begin.IsZero() {
+		this.Begin = t
 	}
 
-	if state.Begin.Add(logic.TurnTimeInfo().RelaxAndCodeDuration).Before(t) {
+	if this.Begin.Add(logic.TurnTimeInfo().RelaxAndCodeDuration).Before(t) {
 		logic.OnTimeGetsCritical(t)
-		state.Begin = time.Time{}
+		this.Begin = time.Time{}
 		return STATE_TIME_IS_CRITICAL
 	}
 
 	return STATE_TIME_IS_OK
 }
 
-func (state *TimerTimeIsCritical) ChangeToState(logic ITurnLogic, t time.Time) TimerInternalStateLabel {
-	if state.Begin.IsZero() {
-		state.Begin = t
+func (this *TimerTimeIsCriticalState) ChangeToState(logic ITurnLogic, t time.Time) TimerInternalStateLabel {
+	if this.Begin.IsZero() {
+		this.Begin = t
 	}
 
-	if state.Begin.Add(logic.TurnTimeInfo().HurryUpDuration).Before(t) {
+	if this.Begin.Add(logic.TurnTimeInfo().HurryUpDuration).Before(t) {
 		logic.OnTimeIsOver(t)
-		state.Begin = time.Time{}
+		this.Begin = time.Time{}
 		return STATE_TIME_IS_OVER
 	}
 
 	return STATE_TIME_IS_CRITICAL
 }
 
-func (state *TimerTimeIsOver) ChangeToState(logic ITurnLogic, time time.Time) TimerInternalStateLabel {
-	if logic.NextParticipantIsReady() {
-		return STATE_WAITING_NEXT_PARTICIPANT
-	}
-
-	return STATE_TIME_IS_OVER
+func (this *TimerTimeIsOverState) ChangeToState(logic ITurnLogic, time time.Time) TimerInternalStateLabel {
+	logic.BlockSession(time)
+	return STATE_WAITING_NEXT_PARTICIPANT
 }

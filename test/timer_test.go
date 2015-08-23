@@ -1,7 +1,7 @@
 package jacodoma
 
 import (
-	. "../src/"
+	. "../src/jacodoma"
 	"fmt"
 	"github.com/smartystreets/assertions/should"
 	. "github.com/smartystreets/goconvey/convey"
@@ -20,102 +20,149 @@ type FakeTurnLogic struct {
 	Participants            Participants
 	Actions                 []FakeTimerAction
 	CurrentParticipantIndex int
-}
-
-func printTime(t time.Time, ev string) {
-	//fmt.Printf("EV: %s TIME: %s SEC: %d and NS: %d\n", ev, t, t.Second(), t.Nanosecond())
+	ParticipantIsReady      bool
 }
 
 func pt(t time.Time) string {
-	return fmt.Sprintf("%d:%d", t.Minute(), t.Second())
+	r := t.Round(200 * time.Millisecond)
+	return fmt.Sprintf("%02d:%02d", r.Minute(), r.Minute())
 }
 
 func (logic *FakeTurnLogic) OnTimeGetsCritical(t time.Time) {
-	printTime(t, "times critical")
 	logic.Actions = append(logic.Actions, FakeTimerAction{t, "time_critical", Participant{}})
 }
 
 func (logic *FakeTurnLogic) OnNextParticipantStarts(t time.Time, p Participant) {
-	printTime(t, "next starts")
 	logic.Actions = append(logic.Actions, FakeTimerAction{t, "next_participant", p})
 }
 
 func (logic *FakeTurnLogic) OnTimeIsOver(t time.Time) {
-	printTime(t, "time over")
 	logic.Actions = append(logic.Actions, FakeTimerAction{t, "time_over", Participant{}})
 }
 
 func (logic *FakeTurnLogic) OnStartsWaitingNextParticipant(t time.Time) {
-	printTime(t, "starts waiting")
 	logic.Actions = append(logic.Actions, FakeTimerAction{t, "waiting_next_participant", Participant{}})
 }
 
-func (logic *FakeTurnLogic) NextParticipant() Participant {
-	// FIXME: code repetition
-	return logic.Participants.Get((logic.CurrentParticipantIndex + 1) % logic.Participants.Length())
+func (logic *FakeTurnLogic) BlockSession(t time.Time) {
+	logic.Actions = append(logic.Actions, FakeTimerAction{t, "block_session", Participant{}})
 }
 
-func (logic *FakeTurnLogic) CurrentParticipant() Participant {
-	return logic.Participants.Get(logic.CurrentParticipantIndex)
+func (logic *FakeTurnLogic) NextParticipantIsReady() bool {
+	return logic.ParticipantIsReady
+}
+
+func (logic *FakeTurnLogic) NextParticipant() Participant {
+	if !logic.NextParticipantIsReady() {
+		return Participant{"", ""}
+	}
+
+	index := logic.CurrentParticipantIndex
+	logic.CurrentParticipantIndex = (logic.CurrentParticipantIndex + 1) % logic.Participants.Length()
+	return logic.Participants.Get(index)
 }
 
 func (logic *FakeTurnLogic) TurnTimeInfo() *TurnTimeInfo {
 	return &logic.info
 }
 
-func (logic *FakeTurnLogic) NextParticipantIsReady() bool {
-	return true
-}
-
 func NewFakeTurnLogic(info TurnTimeInfo, participants Participants) *FakeTurnLogic {
 	return &FakeTurnLogic{
 		info, participants,
-		make([]FakeTimerAction, 0), 0}
+		make([]FakeTimerAction, 0),
+		0, false}
 }
 
-func ExecuteTimer(timer *Timer, begin, end time.Time, duration time.Duration) {
-	for t := begin; t.Unix() < end.Unix(); t = t.Add(duration) {
-		timer.Step(t)
+type TimerExecutor struct {
+	Time  time.Time
+	Timer *Timer
+	Logic *FakeTurnLogic
+}
+
+func NewTimerExecutor(begin time.Time, timer *Timer, logic *FakeTurnLogic) *TimerExecutor {
+	return &TimerExecutor{begin, timer, logic}
+}
+
+func (this *TimerExecutor) Execute(end time.Time, readyTime time.Time) {
+	t := this.Time
+	readyIsSet := false
+
+	for ; end.After(t); t = t.Add(100 * time.Millisecond) {
+		if readyTime.Second() == t.Second() && !readyIsSet {
+			this.Logic.ParticipantIsReady = true
+			this.Timer.Step(t)
+			t = t.Add(100 * time.Millisecond)
+			this.Timer.Step(t)
+			this.Logic.ParticipantIsReady = false
+			readyIsSet = true
+		} else {
+			this.Timer.Step(t)
+		}
 	}
+
+	this.Time = t
 }
 
-func TestTimer(t *testing.T) {
-	Convey("One Turn Timer", t, func() {
-		participants := BuildParticipantsFromArray([]Participant{
-			{"Coding Dojo", "coding@do.jo"},
-			{"Manoel Ribas", "manoel@ribas.go"},
-			{"Juka Juke", "juka@ju.ke"},
-			{"Jon Doe", "joe@doe.com"},
-		})
+func TestCodingDojoWithFourParticipants(t *testing.T) {
+	// Turn lasts 5min and the last 30secs are "critical"
+	turnInfo := TurnTimeInfo{270 * time.Second, 30 * time.Second}
 
-		begin := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	logic := NewFakeTurnLogic(turnInfo, BuildParticipantsFromArray([]Participant{
+		{"Coding Dojo", "coding@do.jo"},
+		{"Manoel Ribas", "manoel@ribas.go"},
+		{"Juka Juke", "juka@ju.ke"},
+		{"Jon Doe", "joe@doe.com"},
+	}))
 
-		// Turn lasts 5min and the last 30sec are "critical"
-		turnInfo := TurnTimeInfo{270 * time.Second, 30 * time.Second}
+	timer := NewTimer(logic)
 
-		logic := NewFakeTurnLogic(turnInfo, participants)
-		timer := NewTimer(logic)
-		So(timer, should.NotEqual, nil)
+	ex := NewTimerExecutor(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), timer, logic)
 
-		// runs for 5:01 min
-		ExecuteTimer(
-			timer, begin, begin.Add(5*time.Minute+1*time.Second),
-			100*time.Millisecond)
+	Convey("Test Timer with 4 users", t, func() {
+		Convey("First Participant Turn", func() {
+			begin := ex.Time
 
-		Convey("User starts on 0sec", func() {
+			// runs from 00:00 to 05:01
+			ex.Execute(begin.Add(5*time.Minute+20*time.Second), begin.Add(10*time.Second))
+
+			So(len(logic.Actions), should.Equal, 4)
+			So(logic.ParticipantIsReady, should.Equal, false)
+
 			So(logic.Actions[0].Action, should.Equal, "next_participant")
 			So(logic.Actions[0].Participant.Email, should.Equal, "coding@do.jo")
-			So(pt(logic.Actions[0].Time), should.Equal, pt(begin))
-		})
+			So(pt(logic.Actions[0].Time), should.Equal, pt(begin.Add(10*time.Second)))
 
-		Convey("Time gets critical on 4:30", func() {
 			So(logic.Actions[1].Action, should.Equal, "time_critical")
-			So(pt(logic.Actions[1].Time), should.Equal, pt(begin.Add(270*time.Second)))
+			So(pt(logic.Actions[1].Time), should.Equal, pt(begin.Add(271*time.Second)))
+
+			So(logic.Actions[2].Action, should.Equal, "time_over")
+			So(pt(logic.Actions[2].Time), should.Equal, pt(begin.Add(301*time.Second)))
+
+			So(logic.Actions[3].Action, should.Equal, "block_session")
+			So(pt(logic.Actions[3].Time), should.Equal, pt(begin.Add(301*time.Second+100*time.Millisecond)))
 		})
 
-		Convey("Time is over on 5:00", func() {
-			So(logic.Actions[2].Action, should.Equal, "time_over")
-			So(pt(logic.Actions[2].Time), should.Equal, pt(begin.Add(300*time.Second)))
+		Convey("Second Participant Turn", func() {
+			begin := ex.Time
+
+			// the second one takes 40s to get ready
+			ex.Execute(begin.Add(6*time.Minute), begin.Add(40*time.Second))
+
+			So(len(logic.Actions), should.Equal, 8)
+			So(logic.ParticipantIsReady, should.Equal, false)
+
+			So(logic.Actions[4].Action, should.Equal, "next_participant")
+			So(logic.Actions[4].Participant.Email, should.Equal, "manoel@ribas.go")
+			So(pt(logic.Actions[4].Time), should.Equal, pt(begin.Add(40*time.Second)))
+
+			So(logic.Actions[5].Action, should.Equal, "time_critical")
+			So(pt(logic.Actions[5].Time), should.Equal, pt(begin.Add(310*time.Second)))
+
+			So(logic.Actions[6].Action, should.Equal, "time_over")
+			So(pt(logic.Actions[6].Time), should.Equal, pt(begin.Add(340*time.Second)))
+
+			So(logic.Actions[7].Action, should.Equal, "block_session")
+			So(pt(logic.Actions[7].Time), should.Equal, pt(begin.Add(340*time.Second+100*time.Millisecond)))
 		})
 	})
 }

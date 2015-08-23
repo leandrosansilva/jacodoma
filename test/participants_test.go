@@ -1,7 +1,7 @@
 package jacodoma
 
 import (
-	. "../src/"
+	. "../src/jacodoma"
 	"github.com/smartystreets/assertions/should"
 	. "github.com/smartystreets/goconvey/convey"
 	"io/ioutil"
@@ -10,12 +10,12 @@ import (
 )
 
 func TestParseParticipants(t *testing.T) {
-	Convey("User is Valid", t, func() {
+	Convey("Participant is Valid", t, func() {
 		p, _ := ParticipantFromString("Coding Dojo <coding@do.jo>")
 		So(p.Valid(), should.Equal, true)
 	})
 
-	Convey("User is Invalid", t, func() {
+	Convey("Participant is Invalid", t, func() {
 		p, _ := ParticipantFromString("Coding Dojo")
 		So(p.Valid(), should.Equal, false)
 	})
