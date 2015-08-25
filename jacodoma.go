@@ -1,9 +1,10 @@
 package main
 
 import (
-	. "./src/jacodoma"
+	. "./src"
 	"bufio"
 	"fmt"
+	"gopkg.in/qml.v1"
 	"os"
 	"time"
 )
@@ -53,6 +54,53 @@ func (logic *TurnLogic) TurnTimeInfo() *TurnTimeInfo {
 	return &logic.info
 }
 
+type QmlGui struct {
+	logic   *TurnLogic
+	channel DurationChannel
+}
+
+func (this *QmlGui) Run() error {
+	setup := func() error {
+		engine := qml.NewEngine()
+
+		component, err := engine.LoadFile("main.qml")
+
+		if err != nil {
+			return err
+		}
+
+		window := component.CreateWindow(nil)
+
+		//root := window.Root()
+		//root.On("lala", func(request *qml.Object) {
+		//})
+
+		/*var duration struct {
+		      duration time.Duration
+		    }
+
+		    engine.Context().SetVar("timer_time", duration)
+
+				go func() {
+					for {
+						duration.duration = <-this.channel
+						qml.Changed(duration, &duration.duration)
+					}
+				}()*/
+
+		window.Show()
+		window.Wait()
+
+		return nil
+	}
+
+	return qml.Run(setup)
+}
+
+func NewQmlGui(logic *TurnLogic, channel DurationChannel) *QmlGui {
+	return &QmlGui{logic, channel}
+}
+
 func main() {
 	participants, _ := LoadParticipantsFromFile("users.jcdm")
 
@@ -68,14 +116,19 @@ func main() {
 
 	ticker := time.NewTicker(100 * time.Millisecond)
 
-	// ui loop
+	// user input loop
 	go func() {
+		reader := bufio.NewReader(os.Stdin)
 		for {
-			d := <-channel
-			r := turnInfo.RelaxAndCodeDuration + turnInfo.HurryUpDuration - d
-			fmt.Printf("time: %s\n", r)
+			// FIXME: data race!
+			reader.ReadString('\n')
+			logic.Ready = true
+			time.Sleep(1 * time.Second)
+			logic.Ready = false
 		}
 	}()
+
+	// ui loop
 
 	// ticker loop
 	go func() {
@@ -84,14 +137,11 @@ func main() {
 		}
 	}()
 
-	// user input loop
-	reader := bufio.NewReader(os.Stdin)
-	for {
-		// FIXME: data race!
-		reader.ReadString('\n')
-		logic.Ready = true
-		time.Sleep(1 * time.Second)
-		logic.Ready = false
+	gui := NewQmlGui(logic, channel)
+
+	if err := gui.Run(); err == nil {
+		fmt.Printf("Error: %s\n", err)
 	}
 
+	fmt.Println("Exiting...")
 }

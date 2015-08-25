@@ -1,7 +1,7 @@
 package jacodoma
 
 import (
-	. "../src/jacodoma"
+	. "../src"
 	"fmt"
 	"github.com/smartystreets/assertions/should"
 	. "github.com/smartystreets/goconvey/convey"
@@ -133,13 +133,13 @@ func TestCodingDojoWithFourParticipants(t *testing.T) {
 	// user interface loop
 	go func() {
 		for {
-			s := <-channel
+			d := <-channel
 
-			if s == -1 {
+			if d == -1 {
 				return
 			}
 
-			ui.Update(s)
+			ui.Update(d)
 		}
 	}()
 
