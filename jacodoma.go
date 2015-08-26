@@ -54,9 +54,15 @@ func (logic *TurnLogic) TurnTimeInfo() *TurnTimeInfo {
 	return &logic.info
 }
 
+// Acts as model to the GUI
+type Control struct {
+	Duration int64
+}
+
 type QmlGui struct {
 	logic   *TurnLogic
 	channel DurationChannel
+	ctrl    *Control
 }
 
 func (this *QmlGui) Run() error {
@@ -71,22 +77,16 @@ func (this *QmlGui) Run() error {
 
 		window := component.CreateWindow(nil)
 
-		//root := window.Root()
-		//root.On("lala", func(request *qml.Object) {
-		//})
+		engine.Context().SetVar("ctrl", this.ctrl)
+		engine.Context().SetVar("turn", this.logic)
 
-		/*var duration struct {
-		      duration time.Duration
-		    }
-
-		    engine.Context().SetVar("timer_time", duration)
-
-				go func() {
-					for {
-						duration.duration = <-this.channel
-						qml.Changed(duration, &duration.duration)
-					}
-				}()*/
+		go func() {
+			for {
+				d := <-this.channel
+				this.ctrl.Duration = int64(d)
+				qml.Changed(this.ctrl, &this.ctrl.Duration)
+			}
+		}()
 
 		window.Show()
 		window.Wait()
@@ -98,13 +98,13 @@ func (this *QmlGui) Run() error {
 }
 
 func NewQmlGui(logic *TurnLogic, channel DurationChannel) *QmlGui {
-	return &QmlGui{logic, channel}
+	return &QmlGui{logic, channel, &Control{}}
 }
 
 func main() {
 	participants, _ := LoadParticipantsFromFile("users.jcdm")
 
-	turnInfo := TurnTimeInfo{10 * time.Second, 5 * time.Second}
+	turnInfo := TurnTimeInfo{80 * time.Second, 35 * time.Second}
 
 	logic := &TurnLogic{turnInfo, participants, 0, false}
 
@@ -113,8 +113,6 @@ func main() {
 	timer := NewTimer(logic, channel)
 
 	timer.Step(time.Time{})
-
-	ticker := time.NewTicker(100 * time.Millisecond)
 
 	// user input loop
 	go func() {
@@ -128,10 +126,9 @@ func main() {
 		}
 	}()
 
-	// ui loop
-
 	// ticker loop
 	go func() {
+		ticker := time.NewTicker(100 * time.Millisecond)
 		for t := range ticker.C {
 			timer.Step(t)
 		}
