@@ -2,21 +2,26 @@ package main
 
 import (
 	. "./src"
-	"bufio"
 	"fmt"
 	"gopkg.in/qml.v1"
-	"os"
 	"time"
 )
 
-func init() {
-}
-
-type TurnLogic struct {
-	info         TurnTimeInfo
+type TurnInformation struct {
+	Info         TurnTimeInfo
 	Participants Participants
 	Index        int
 	Ready        bool
+}
+
+func (info *TurnInformation) NextParticipant() Participant {
+	p := info.Participants.Get(info.Index)
+	info.Index = (info.Index + 1) % info.Participants.Length()
+	return p
+}
+
+type TurnLogic struct {
+	info *TurnInformation
 }
 
 func (logic *TurnLogic) OnTimeGetsCritical(t time.Time) {
@@ -40,27 +45,36 @@ func (logic *TurnLogic) BlockSession(t time.Time) {
 }
 
 func (logic *TurnLogic) NextParticipantIsReady() bool {
-	// FIXME: data race!
-	return logic.Ready
+	// FIXME: data race condition!
+	return logic.info.Ready
 }
 
 func (logic *TurnLogic) NextParticipant() Participant {
-	p := logic.Participants.Get(logic.Index)
-	logic.Index = (logic.Index + 1) % logic.Participants.Length()
-	return p
+	return logic.info.NextParticipant()
 }
 
 func (logic *TurnLogic) TurnTimeInfo() *TurnTimeInfo {
-	return &logic.info
+	return &logic.info.Info
 }
 
 // Acts as model to the GUI
 type Control struct {
+	Info     *TurnInformation
 	Duration int64
 }
 
+func (this *Control) SetParticipantReady() {
+	this.Info.Ready = true
+
+	// FIXME: workaround (with data race condition)
+	go func() {
+		time.Sleep(1 * time.Second)
+		this.Info.Ready = false
+	}()
+}
+
 type QmlGui struct {
-	logic   *TurnLogic
+	info    *TurnInformation
 	channel DurationChannel
 	ctrl    *Control
 }
@@ -76,7 +90,6 @@ func (this *QmlGui) Run() error {
 		}
 
 		engine.Context().SetVar("ctrl", this.ctrl)
-		engine.Context().SetVar("turn", this.logic)
 
 		go func() {
 			for {
@@ -97,8 +110,8 @@ func (this *QmlGui) Run() error {
 	return qml.Run(setup)
 }
 
-func NewQmlGui(logic *TurnLogic, channel DurationChannel) *QmlGui {
-	return &QmlGui{logic, channel, &Control{}}
+func NewQmlGui(info *TurnInformation, channel DurationChannel) *QmlGui {
+	return &QmlGui{info, channel, &Control{info, 0}}
 }
 
 func main() {
@@ -106,25 +119,17 @@ func main() {
 
 	turnInfo := TurnTimeInfo{20 * time.Second, 10 * time.Second}
 
-	logic := &TurnLogic{turnInfo, participants, 0, false}
+	info := &TurnInformation{turnInfo, participants, 0, false}
+
+	logic := &TurnLogic{info}
 
 	channel := make(DurationChannel, 0)
+
+	gui := NewQmlGui(info, channel)
 
 	timer := NewTimer(logic, channel)
 
 	timer.Step(time.Time{})
-
-	// user input loop
-	go func() {
-		reader := bufio.NewReader(os.Stdin)
-		for {
-			// FIXME: data race!
-			reader.ReadString('\n')
-			logic.Ready = true
-			time.Sleep(1 * time.Second)
-			logic.Ready = false
-		}
-	}()
 
 	// ticker loop
 	go func() {
@@ -133,8 +138,6 @@ func main() {
 			timer.Step(t)
 		}
 	}()
-
-	gui := NewQmlGui(logic, channel)
 
 	if err := gui.Run(); err != nil {
 		fmt.Printf("Error: %s\n", err)

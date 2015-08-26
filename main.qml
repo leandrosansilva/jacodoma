@@ -1,4 +1,5 @@
 import QtQuick 2.0
+import QtQuick.Controls 1.1
 
 Rectangle {
   id: root
@@ -18,9 +19,17 @@ Rectangle {
 
       return padTime(min.toString()) + ":" + padTime(sec.toString())
     }
+
     id: "timer"
     text: formatTimer(ctrl.duration)
     y: 30
     font.pointSize: 24; font.bold: true
+  }
+
+  Button {
+    y: 300
+    x: 100
+    text: "Next Participant"
+    onClicked: ctrl.setParticipantReady()    
   }
 }
