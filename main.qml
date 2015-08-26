@@ -19,7 +19,7 @@ Rectangle {
       return padTime(min.toString()) + ":" + padTime(sec.toString())
     }
     id: "timer"
-    itext: formatTimer(ctrl.duration)
+    text: formatTimer(ctrl.duration)
     y: 30
     font.pointSize: 24; font.bold: true
   }

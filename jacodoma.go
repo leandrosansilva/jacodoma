@@ -75,8 +75,6 @@ func (this *QmlGui) Run() error {
 			return err
 		}
 
-		window := component.CreateWindow(nil)
-
 		engine.Context().SetVar("ctrl", this.ctrl)
 		engine.Context().SetVar("turn", this.logic)
 
@@ -87,6 +85,8 @@ func (this *QmlGui) Run() error {
 				qml.Changed(this.ctrl, &this.ctrl.Duration)
 			}
 		}()
+
+		window := component.CreateWindow(nil)
 
 		window.Show()
 		window.Wait()
@@ -104,7 +104,7 @@ func NewQmlGui(logic *TurnLogic, channel DurationChannel) *QmlGui {
 func main() {
 	participants, _ := LoadParticipantsFromFile("users.jcdm")
 
-	turnInfo := TurnTimeInfo{80 * time.Second, 35 * time.Second}
+	turnInfo := TurnTimeInfo{20 * time.Second, 10 * time.Second}
 
 	logic := &TurnLogic{turnInfo, participants, 0, false}
 
@@ -136,7 +136,7 @@ func main() {
 
 	gui := NewQmlGui(logic, channel)
 
-	if err := gui.Run(); err == nil {
+	if err := gui.Run(); err != nil {
 		fmt.Printf("Error: %s\n", err)
 	}
 
