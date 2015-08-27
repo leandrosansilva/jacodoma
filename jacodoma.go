@@ -22,16 +22,16 @@ func (logic *TurnLogic) OnTimeGetsCritical(t time.Time) {
 	fmt.Println("Hurry up dude!")
 }
 
-func (logic *TurnLogic) OnNextParticipantStarts(t time.Time, p Participant) {
-	fmt.Printf("%s starts!\n", p.Name)
+func (logic *TurnLogic) OnNextParticipantStarts(t time.Time) {
+	fmt.Println("Participant starts!")
 }
 
 func (logic *TurnLogic) OnTimeIsOver(t time.Time) {
 	fmt.Println("Timeout :-(!")
 }
 
-func (logic *TurnLogic) OnStartsWaitingNextParticipant(t time.Time) {
-	fmt.Println("Waiting for the next participant...")
+func (logic *TurnLogic) OnStartsWaitingNextParticipant(t time.Time, p Participant) {
+	fmt.Printf("Waiting for the next participant %s\n", p.Name)
 }
 
 func (logic *TurnLogic) BlockSession(t time.Time) {
