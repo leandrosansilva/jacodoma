@@ -16,9 +16,9 @@ type TurnTimeInfo struct {
 
 type ITurnLogic interface {
 	OnTimeGetsCritical(time.Time)
-	OnNextParticipantStarts(time.Time, Participant)
+	OnNextParticipantStarts(time.Time)
 	OnTimeIsOver(time.Time)
-	OnStartsWaitingNextParticipant(time.Time)
+	OnStartsWaitingNextParticipant(time.Time, Participant)
 	NextParticipant() Participant
 	TurnTimeInfo() *TurnTimeInfo
 	NextParticipantIsReady() bool
@@ -28,6 +28,7 @@ type ITurnLogic interface {
 type TimerInternalStateLabel int
 
 const (
+	STATE_INITIAL                  TimerInternalStateLabel = iota
 	STATE_WAITING_NEXT_PARTICIPANT TimerInternalStateLabel = iota
 	STATE_TIME_IS_OK               TimerInternalStateLabel = iota
 	STATE_TIME_IS_CRITICAL         TimerInternalStateLabel = iota
@@ -74,9 +75,9 @@ func (this *TurnContext) Update(channel DurationChannel, t time.Time) {
 	// time elapsed since the turn begin
 	d := t.Sub(this.Begin)
 
-	s := d / time.Second
+	seconds := d / time.Second
 
-	if s != this.LastDuration/time.Second || this.LastDuration == 0 {
+	if seconds != this.LastDuration/time.Second || this.LastDuration == 0 {
 		this.LastDuration = d
 		channel <- d
 	}
@@ -101,10 +102,13 @@ func (timer *Timer) Step(t time.Time) {
 }
 
 // Implementing states
+type TimerInitialState struct {
+}
+
 type TimerStartedState struct {
 }
 
-type TimerWaitingNextParticipant struct {
+type TimerWaitingNextParticipantState struct {
 }
 
 type TimerTimeIsOkState struct {
@@ -120,8 +124,9 @@ type TimerTimeIsOverState struct {
 
 func NewTimer(logic ITurnLogic, channel DurationChannel) *Timer {
 	context := &TurnContext{}
-	timer := &Timer{context, logic, STATE_WAITING_NEXT_PARTICIPANT, StatesMap{
-		STATE_WAITING_NEXT_PARTICIPANT: &TimerWaitingNextParticipant{},
+	timer := &Timer{context, logic, STATE_INITIAL, StatesMap{
+		STATE_INITIAL:                  &TimerInitialState{},
+		STATE_WAITING_NEXT_PARTICIPANT: &TimerWaitingNextParticipantState{},
 		STATE_TIME_IS_OK:               &TimerTimeIsOkState{context},
 		STATE_TIME_IS_CRITICAL:         &TimerTimeIsCriticalState{context},
 		STATE_TIME_IS_OVER:             &TimerTimeIsOverState{},
@@ -130,14 +135,14 @@ func NewTimer(logic ITurnLogic, channel DurationChannel) *Timer {
 	return timer
 }
 
-func (this *TimerStartedState) ChangeToState(logic ITurnLogic, time time.Time) TimerInternalStateLabel {
-	logic.OnStartsWaitingNextParticipant(time)
+func (this *TimerInitialState) ChangeToState(logic ITurnLogic, time time.Time) TimerInternalStateLabel {
+	logic.OnStartsWaitingNextParticipant(time, logic.NextParticipant())
 	return STATE_WAITING_NEXT_PARTICIPANT
 }
 
-func (this *TimerWaitingNextParticipant) ChangeToState(logic ITurnLogic, time time.Time) TimerInternalStateLabel {
+func (this *TimerWaitingNextParticipantState) ChangeToState(logic ITurnLogic, time time.Time) TimerInternalStateLabel {
 	if logic.NextParticipantIsReady() {
-		logic.OnNextParticipantStarts(time, logic.NextParticipant())
+		logic.OnNextParticipantStarts(time)
 		return STATE_TIME_IS_OK
 	}
 
@@ -168,6 +173,8 @@ func (this *TimerTimeIsCriticalState) ChangeToState(logic ITurnLogic, t time.Tim
 }
 
 func (this *TimerTimeIsOverState) ChangeToState(logic ITurnLogic, time time.Time) TimerInternalStateLabel {
+	logic.OnStartsWaitingNextParticipant(time, logic.NextParticipant())
 	logic.BlockSession(time)
+
 	return STATE_WAITING_NEXT_PARTICIPANT
 }

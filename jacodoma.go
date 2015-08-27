@@ -40,8 +40,10 @@ func (info *TurnInformation) ParticipantStarts() {
 }
 
 func (info *TurnInformation) StartsWaitingNextParticipant() {
-	fmt.Println("waiting for the next participant")
-	info.ParticipantChannel <- info.NextParticipant()
+	p := info.NextParticipant()
+	fmt.Printf("waiting for the next participant: %s\n", p.Name)
+	// FIXME: this is blocking the ui!
+	//info.ParticipantChannel <- p
 }
 
 type TurnLogic struct {
@@ -52,7 +54,7 @@ func (logic *TurnLogic) OnTimeGetsCritical(t time.Time) {
 	logic.info.HurryUp()
 }
 
-func (logic *TurnLogic) OnNextParticipantStarts(t time.Time, p Participant) {
+func (logic *TurnLogic) OnNextParticipantStarts(t time.Time) {
 	logic.info.ParticipantStarts()
 }
 
@@ -60,7 +62,7 @@ func (logic *TurnLogic) OnTimeIsOver(t time.Time) {
 	logic.info.TimeIsOver()
 }
 
-func (logic *TurnLogic) OnStartsWaitingNextParticipant(t time.Time) {
+func (logic *TurnLogic) OnStartsWaitingNextParticipant(t time.Time, p Participant) {
 	logic.info.StartsWaitingNextParticipant()
 }
 
