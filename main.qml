@@ -26,6 +26,21 @@ Rectangle {
     font.pointSize: 24; font.bold: true
   }
 
+  Text {
+    text: ctrl.state
+    y: 200
+  }
+
+  Text {
+    text: ctrl.participant.name
+    y: 230
+  }
+
+  Text {
+    text: ctrl.participant.email
+    y: 250
+  }
+
   Button {
     y: 300
     x: 100
