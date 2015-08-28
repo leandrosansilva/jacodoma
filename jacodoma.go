@@ -40,9 +40,7 @@ func (info *TurnInformation) ParticipantStarts() {
 }
 
 func (info *TurnInformation) StartsWaitingNextParticipant(p Participant) {
-	fmt.Printf("waiting for the next participant: %s\n", p.Name)
 	info.State <- "waiting_participant"
-	// FIXME: this is blocking the ui!
 	info.ParticipantChannel <- p
 }
 
