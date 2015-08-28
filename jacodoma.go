@@ -39,11 +39,11 @@ func (info *TurnInformation) ParticipantStarts() {
 	info.State <- "start"
 }
 
-func (info *TurnInformation) StartsWaitingNextParticipant() {
-	p := info.NextParticipant()
+func (info *TurnInformation) StartsWaitingNextParticipant(p Participant) {
 	fmt.Printf("waiting for the next participant: %s\n", p.Name)
+	info.State <- "waiting_participant"
 	// FIXME: this is blocking the ui!
-	//info.ParticipantChannel <- p
+	info.ParticipantChannel <- p
 }
 
 type TurnLogic struct {
@@ -63,7 +63,7 @@ func (logic *TurnLogic) OnTimeIsOver(t time.Time) {
 }
 
 func (logic *TurnLogic) OnStartsWaitingNextParticipant(t time.Time, p Participant) {
-	logic.info.StartsWaitingNextParticipant()
+	logic.info.StartsWaitingNextParticipant(p)
 }
 
 func (logic *TurnLogic) BlockSession(t time.Time) {
@@ -108,7 +108,7 @@ type QmlGui struct {
 }
 
 func (this *QmlGui) Run() error {
-	setup := func() error {
+	return qml.Run(func() error {
 		engine := qml.NewEngine()
 
 		component, err := engine.LoadFile("main.qml")
@@ -119,28 +119,18 @@ func (this *QmlGui) Run() error {
 
 		engine.Context().SetVar("ctrl", this.ctrl)
 
-		// timer ui loop
+		// ui loop
 		go func() {
 			for {
-				d := <-this.channel
-				this.ctrl.Duration = int64(d)
-				qml.Changed(this.ctrl, &this.ctrl.Duration)
-			}
-		}()
-
-		// turn state (ok, hurry up, time is over...) ui loop
-		go func() {
-			for {
-				this.ctrl.State = <-this.info.State
-				qml.Changed(this.ctrl, &this.ctrl.State)
-			}
-		}()
-
-		// participant ui loop
-		go func() {
-			for {
-				this.ctrl.Participant = <-this.info.ParticipantChannel
-				qml.Changed(this.ctrl, &this.ctrl.Participant)
+				select {
+				case d := <-this.channel:
+					this.ctrl.Duration = int64(d)
+					qml.Changed(this.ctrl, &this.ctrl.Duration)
+				case this.ctrl.State = <-this.info.State:
+					qml.Changed(this.ctrl, &this.ctrl.State)
+				case this.ctrl.Participant = <-this.info.ParticipantChannel:
+					qml.Changed(this.ctrl, &this.ctrl.Participant)
+				}
 			}
 		}()
 
@@ -150,9 +140,7 @@ func (this *QmlGui) Run() error {
 		window.Wait()
 
 		return nil
-	}
-
-	return qml.Run(setup)
+	})
 }
 
 func NewQmlGui(info *TurnInformation, channel DurationChannel) *QmlGui {
@@ -164,7 +152,11 @@ func main() {
 
 	turnInfo := TurnTimeInfo{20 * time.Second, 10 * time.Second}
 
-	info := &TurnInformation{turnInfo, participants, 0, false, make(chan string), make(chan Participant)}
+	info := &TurnInformation{
+		turnInfo,
+		participants, 0, false,
+		make(chan string),
+		make(chan Participant)}
 
 	logic := &TurnLogic{info}
 
@@ -174,9 +166,7 @@ func main() {
 
 	timer := NewTimer(logic, channel)
 
-	timer.Step(time.Time{})
-
-	// ticker loop
+	// timer ticker loop
 	go func() {
 		ticker := time.NewTicker(100 * time.Millisecond)
 		for t := range ticker.C {

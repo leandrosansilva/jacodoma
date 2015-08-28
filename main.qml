@@ -32,19 +32,18 @@ Rectangle {
   }
 
   Text {
-    text: ctrl.participant.name
-    y: 230
-  }
-
-  Text {
     text: ctrl.participant.email
     y: 250
   }
 
   Button {
+    function buttonLabel() {
+      return "Start: " + ctrl.participant.name
+    }
+
     y: 300
     x: 100
-    text: "Next Participant"
+    text: buttonLabel()
     onClicked: ctrl.setParticipantReady()    
   }
 }
