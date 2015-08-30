@@ -113,8 +113,8 @@ type QmlGui struct {
 	ctrl               *Control
 }
 
-func gravatarImageProvider(source string, width, height int) image.Image {
-	emailHash := gravatar.EmailHash(source)
+func gravatarImageProvider(email string, width, height int) image.Image {
+	emailHash := gravatar.EmailHash(email)
 
 	raw, err := gravatar.GetAvatar("https", emailHash, gravatar.DefaultMonster, width)
 

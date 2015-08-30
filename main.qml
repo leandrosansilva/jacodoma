@@ -3,7 +3,8 @@ import QtQuick.Controls 1.1
 
 Rectangle {
   id: root
-  width: 320; height: 480
+  width: 1000; 
+  height: 700
   color: "lightgray"
 
   function padTime(time) {
@@ -61,7 +62,7 @@ Rectangle {
   }
 
   Image {
-    source: buildParticipantAvatarSourceUrl(ctrl.participant.email)
+    source: buildParticipantAvatarSourceUrl(ctrl.participants.get(ctrl.currentParticipantIndex).email)
     width: 128
     height: 128
     y: 350
