@@ -94,6 +94,7 @@ type Control struct {
 	State                   string
 	CurrentParticipantIndex int
 	Participants            *Participants
+	ParticipantsLen         int
 }
 
 func (this *Control) SetParticipantReady() {
@@ -175,7 +176,7 @@ func (this *QmlGui) Run() error {
 }
 
 func NewQmlGui(info *TurnInformation, turnTimeChannel, sessionTimeChannel DurationChannel) *QmlGui {
-	control := &Control{info, 0, 0, "", 0, &info.Participants}
+	control := &Control{info, 0, 0, "", 0, &info.Participants, info.Participants.Length()}
 	return &QmlGui{info, turnTimeChannel, sessionTimeChannel, control}
 }
 

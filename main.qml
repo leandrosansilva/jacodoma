@@ -68,4 +68,34 @@ Rectangle {
     y: 350
     x: 10
   }
+
+  ListView {
+    width: 200
+    height: 500
+
+    y: 0
+    x: 400
+
+    model: ctrl.participantsLen
+
+    delegate: Rectangle {
+      width: 100
+      height: 50
+
+      Image {
+        width: parent.height
+        height: parent.height
+        y: 0
+        x: 0
+        source: buildParticipantAvatarSourceUrl(ctrl.participants.get(index).email)
+      }
+
+      Text {
+        height: parent.height
+        x: 60
+        text: ctrl.participants.get(index).name
+      }
+    }
+  }
+
 }
