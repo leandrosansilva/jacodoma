@@ -2,8 +2,13 @@ package main
 
 import (
 	. "./src"
+	"bytes"
 	"fmt"
+	"github.com/ftrvxmtrx/gravatar"
 	"gopkg.in/qml.v1"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"time"
 )
 
@@ -107,9 +112,31 @@ type QmlGui struct {
 	ctrl               *Control
 }
 
+func gravatarImageProvider(source string, width, height int) image.Image {
+	emailHash := gravatar.EmailHash(source)
+
+	raw, err := gravatar.GetAvatar("https", emailHash, gravatar.DefaultMonster, width)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if img, err := png.Decode(bytes.NewReader(raw)); err == nil {
+		return img
+	}
+
+	if img, err := jpeg.Decode(bytes.NewReader(raw)); err == nil {
+		return img
+	}
+
+	return nil
+}
+
 func (this *QmlGui) Run() error {
 	return qml.Run(func() error {
 		engine := qml.NewEngine()
+
+		engine.AddImageProvider("gravatar", gravatarImageProvider)
 
 		component, err := engine.LoadFile("main.qml")
 

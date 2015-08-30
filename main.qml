@@ -14,13 +14,17 @@ Rectangle {
     // duration is in nanosecond
     var secTotal = duration / 1000000000
     var sec = (secTotal % 60).toFixed()
-    var min = Math.floor(secTotal / 60)
+    var min = Math.floor((secTotal / 60) % 60)
     var hour = Math.floor(secTotal / 3600)
 
     return (hour == 0 
               ? "" 
               : padTime(hour) + ":") 
            + padTime(min.toString()) + ":" + padTime(sec.toString())
+  }
+
+  function buildParticipantAvatarSourceUrl(email) {
+    return "image://gravatar/" + email
   }
 
   Text {
@@ -54,5 +58,13 @@ Rectangle {
     x: 100
     text: buttonLabel()
     onClicked: ctrl.setParticipantReady()    
+  }
+
+  Image {
+    source: buildParticipantAvatarSourceUrl(ctrl.participant.email)
+    width: 128
+    height: 128
+    y: 350
+    x: 10
   }
 }
