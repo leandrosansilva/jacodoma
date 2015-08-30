@@ -13,18 +13,18 @@ type TurnInformation struct {
 	Index              int
 	Ready              bool
 	State              chan string
-	ParticipantChannel chan Participant
+	ParticipantChannel chan int
 }
 
-func (info *TurnInformation) ChangeToNextParticipant() Participant {
-	p := info.Participants.Get(info.Index)
+func (info *TurnInformation) ChangeToNextParticipantIndex() int {
+	index := info.Index
 	info.Index = (info.Index + 1) % info.Participants.Length()
-	return p
+	return index
 }
 
-func (info *TurnInformation) NextParticipant() Participant {
+func (info *TurnInformation) NextParticipantIndex() int {
 	// FIXME: this "rotational" logic should be in Participants{}
-	return info.Participants.Get((info.Index + 1) % info.Participants.Length())
+	return (info.Index + 1) % info.Participants.Length()
 }
 
 func (info *TurnInformation) HurryUp() {
@@ -39,9 +39,9 @@ func (info *TurnInformation) ParticipantStarts() {
 	info.State <- "start"
 }
 
-func (info *TurnInformation) StartsWaitingNextParticipant(p Participant) {
+func (info *TurnInformation) StartsWaitingNextParticipant(index int) {
 	info.State <- "waiting_participant"
-	info.ParticipantChannel <- p
+	info.ParticipantChannel <- index
 }
 
 type TurnLogic struct {
@@ -60,8 +60,8 @@ func (logic *TurnLogic) OnTimeIsOver(t time.Time) {
 	logic.info.TimeIsOver()
 }
 
-func (logic *TurnLogic) OnStartsWaitingNextParticipant(t time.Time, p Participant) {
-	logic.info.StartsWaitingNextParticipant(p)
+func (logic *TurnLogic) OnStartsWaitingNextParticipant(t time.Time, index int) {
+	logic.info.StartsWaitingNextParticipant(index)
 }
 
 func (logic *TurnLogic) BlockSession(t time.Time) {
@@ -73,8 +73,8 @@ func (logic *TurnLogic) NextParticipantIsReady() bool {
 	return logic.info.Ready
 }
 
-func (logic *TurnLogic) NextParticipant() Participant {
-	return logic.info.ChangeToNextParticipant()
+func (logic *TurnLogic) NextParticipantIndex() int {
+	return logic.info.ChangeToNextParticipantIndex()
 }
 
 func (logic *TurnLogic) TurnTimeInfo() *TurnTimeInfo {
@@ -83,11 +83,12 @@ func (logic *TurnLogic) TurnTimeInfo() *TurnTimeInfo {
 
 // Acts as model to the GUI
 type Control struct {
-	Info            *TurnInformation
-	TurnDuration    int64
-	SessionDuration int64
-	State           string
-	Participant     Participant
+	Info                    *TurnInformation
+	TurnDuration            int64
+	SessionDuration         int64
+	State                   string
+	CurrentParticipantIndex int
+	Participants            *Participants
 }
 
 func (this *Control) SetParticipantReady() {
@@ -131,8 +132,8 @@ func (this *QmlGui) Run() error {
 					qml.Changed(this.ctrl, &this.ctrl.SessionDuration)
 				case this.ctrl.State = <-this.info.State:
 					qml.Changed(this.ctrl, &this.ctrl.State)
-				case this.ctrl.Participant = <-this.info.ParticipantChannel:
-					qml.Changed(this.ctrl, &this.ctrl.Participant)
+				case this.ctrl.CurrentParticipantIndex = <-this.info.ParticipantChannel:
+					qml.Changed(this.ctrl, &this.ctrl.CurrentParticipantIndex)
 				}
 			}
 		}()
@@ -147,12 +148,20 @@ func (this *QmlGui) Run() error {
 }
 
 func NewQmlGui(info *TurnInformation, turnTimeChannel, sessionTimeChannel DurationChannel) *QmlGui {
-	control := &Control{info, 0, 0, "", Participant{}}
+	control := &Control{info, 0, 0, "", 0, &info.Participants}
 	return &QmlGui{info, turnTimeChannel, sessionTimeChannel, control}
 }
 
 func main() {
-	participants, _ := LoadParticipantsFromFile("users.jcdm")
+	participants, err := LoadParticipantsFromFile("users.jcdm")
+
+	if err != nil {
+		panic(err)
+	}
+
+	if participants.Length() == 0 {
+		panic("There is no participants :-(")
+	}
 
 	turnInfo := TurnTimeInfo{20 * time.Second, 10 * time.Second}
 
@@ -160,7 +169,7 @@ func main() {
 		turnInfo,
 		participants, 0, false,
 		make(chan string),
-		make(chan Participant)}
+		make(chan int)}
 
 	logic := &TurnLogic{info}
 

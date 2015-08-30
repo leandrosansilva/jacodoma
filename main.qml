@@ -41,13 +41,13 @@ Rectangle {
   }
 
   Text {
-    text: ctrl.participant.email
+    text: ctrl.participants.get(ctrl.currentParticipantIndex).email
     y: 250
   }
 
   Button {
     function buttonLabel() {
-      return "Start: " + ctrl.participant.name
+      return "Start: " + ctrl.participants.get(ctrl.currentParticipantIndex).name
     }
 
     y: 300
