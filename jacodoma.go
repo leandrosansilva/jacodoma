@@ -30,8 +30,8 @@ func (logic *TurnLogic) OnTimeIsOver(t time.Time) {
 	fmt.Println("Timeout :-(!")
 }
 
-func (logic *TurnLogic) OnStartsWaitingNextParticipant(t time.Time, p Participant) {
-	fmt.Printf("Waiting for the next participant %s\n", p.Name)
+func (logic *TurnLogic) OnStartsWaitingNextParticipant(t time.Time, index int) {
+	fmt.Printf("Waiting for the next participant %s\n", logic.Participants.Get(index).Name)
 }
 
 func (logic *TurnLogic) BlockSession(t time.Time) {
@@ -43,10 +43,10 @@ func (logic *TurnLogic) NextParticipantIsReady() bool {
 	return logic.Ready
 }
 
-func (logic *TurnLogic) NextParticipant() Participant {
-	p := logic.Participants.Get(logic.Index)
+func (logic *TurnLogic) NextParticipantIndex() int {
+	index := logic.Index
 	logic.Index = (logic.Index + 1) % logic.Participants.Length()
-	return p
+	return index
 }
 
 func (logic *TurnLogic) TurnTimeInfo() *TurnTimeInfo {

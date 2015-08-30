@@ -18,8 +18,8 @@ type ITurnLogic interface {
 	OnTimeGetsCritical(time.Time)
 	OnNextParticipantStarts(time.Time)
 	OnTimeIsOver(time.Time)
-	OnStartsWaitingNextParticipant(time.Time, Participant)
-	NextParticipant() Participant
+	OnStartsWaitingNextParticipant(time.Time, int)
+	NextParticipantIndex() int
 	TurnTimeInfo() *TurnTimeInfo
 	NextParticipantIsReady() bool
 	BlockSession(time.Time)
@@ -158,7 +158,7 @@ func NewTimer(logic ITurnLogic, turnChannel DurationChannel, sessionChannel Dura
 }
 
 func (this *TimerInitialState) ChangeToState(logic ITurnLogic, time time.Time) TimerInternalStateLabel {
-	logic.OnStartsWaitingNextParticipant(time, logic.NextParticipant())
+	logic.OnStartsWaitingNextParticipant(time, logic.NextParticipantIndex())
 	return STATE_WAITING_NEXT_PARTICIPANT
 }
 
@@ -195,7 +195,7 @@ func (this *TimerTimeIsCriticalState) ChangeToState(logic ITurnLogic, t time.Tim
 }
 
 func (this *TimerTimeIsOverState) ChangeToState(logic ITurnLogic, time time.Time) TimerInternalStateLabel {
-	logic.OnStartsWaitingNextParticipant(time, logic.NextParticipant())
+	logic.OnStartsWaitingNextParticipant(time, logic.NextParticipantIndex())
 	logic.BlockSession(time)
 
 	return STATE_WAITING_NEXT_PARTICIPANT
