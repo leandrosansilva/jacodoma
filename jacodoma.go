@@ -83,10 +83,11 @@ func (logic *TurnLogic) TurnTimeInfo() *TurnTimeInfo {
 
 // Acts as model to the GUI
 type Control struct {
-	Info        *TurnInformation
-	Duration    int64
-	State       string
-	Participant Participant
+	Info            *TurnInformation
+	TurnDuration    int64
+	SessionDuration int64
+	State           string
+	Participant     Participant
 }
 
 func (this *Control) SetParticipantReady() {
@@ -100,9 +101,10 @@ func (this *Control) SetParticipantReady() {
 }
 
 type QmlGui struct {
-	info    *TurnInformation
-	channel DurationChannel
-	ctrl    *Control
+	info               *TurnInformation
+	turnTimeChannel    DurationChannel
+	sessionTimeChannel DurationChannel
+	ctrl               *Control
 }
 
 func (this *QmlGui) Run() error {
@@ -121,9 +123,12 @@ func (this *QmlGui) Run() error {
 		go func() {
 			for {
 				select {
-				case d := <-this.channel:
-					this.ctrl.Duration = int64(d)
-					qml.Changed(this.ctrl, &this.ctrl.Duration)
+				case d := <-this.turnTimeChannel:
+					this.ctrl.TurnDuration = int64(d)
+					qml.Changed(this.ctrl, &this.ctrl.TurnDuration)
+				case d := <-this.sessionTimeChannel:
+					this.ctrl.SessionDuration = int64(d)
+					qml.Changed(this.ctrl, &this.ctrl.SessionDuration)
 				case this.ctrl.State = <-this.info.State:
 					qml.Changed(this.ctrl, &this.ctrl.State)
 				case this.ctrl.Participant = <-this.info.ParticipantChannel:
@@ -141,8 +146,9 @@ func (this *QmlGui) Run() error {
 	})
 }
 
-func NewQmlGui(info *TurnInformation, channel DurationChannel) *QmlGui {
-	return &QmlGui{info, channel, &Control{info, 0, "", Participant{}}}
+func NewQmlGui(info *TurnInformation, turnTimeChannel, sessionTimeChannel DurationChannel) *QmlGui {
+	control := &Control{info, 0, 0, "", Participant{}}
+	return &QmlGui{info, turnTimeChannel, sessionTimeChannel, control}
 }
 
 func main() {
@@ -158,11 +164,12 @@ func main() {
 
 	logic := &TurnLogic{info}
 
-	channel := make(DurationChannel, 0)
+	turnTimeChannel := make(DurationChannel, 0)
+	sessionTimeChannel := make(DurationChannel, 0)
 
-	gui := NewQmlGui(info, channel)
+	timer := NewTimer(logic, turnTimeChannel, sessionTimeChannel)
 
-	timer := NewTimer(logic, channel)
+	gui := NewQmlGui(info, turnTimeChannel, sessionTimeChannel)
 
 	// timer ticker loop
 	go func() {

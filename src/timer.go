@@ -44,51 +44,73 @@ type DurationChannel chan time.Duration
 type StatesMap map[TimerInternalStateLabel]ITimerIntenalState
 
 type TurnContext struct {
-	Begin        time.Time
-	CriticalTime time.Time
-	LastDuration time.Duration
+	SessionBegin        time.Time
+	TurnBegin           time.Time
+	CriticalTime        time.Time
+	LastTurnDuration    time.Duration
+	LastSessionDuration time.Duration
 }
 
 func (this *TurnContext) SetTurnBeginIfNotDefined(t time.Time) {
-	if this.Begin.IsZero() {
-		this.Begin = t
+	if this.TurnBegin.IsZero() {
+		this.TurnBegin = t
 	}
 }
 
 func (this *TurnContext) SetCriticalBeginIfNotDefined(t time.Time) {
 	if this.CriticalTime.IsZero() {
 		this.CriticalTime = t
-		this.LastDuration = 0
+		this.LastTurnDuration = 0
 	}
 }
 
 func (this *TurnContext) Reset() {
 	this.CriticalTime = time.Time{}
-	this.Begin = time.Time{}
+	this.TurnBegin = time.Time{}
 }
 
-func (this *TurnContext) Update(channel DurationChannel, t time.Time) {
-	if this.Begin.IsZero() {
-		return
-	}
-
-	// time elapsed since the turn begin
-	d := t.Sub(this.Begin)
+func tryToUpdateTimeAndSendToChannel(channel DurationChannel, begin time.Time, t time.Time, duration time.Duration) time.Duration {
+	d := t.Sub(begin)
 
 	seconds := d / time.Second
 
-	if seconds != this.LastDuration/time.Second || this.LastDuration == 0 {
-		this.LastDuration = d
+	if seconds != duration/time.Second || duration == 0 {
 		channel <- d
 	}
+
+	return d
+}
+
+func (this *TurnContext) UpdateTurnTime(turnChannel DurationChannel, t time.Time) {
+	if this.TurnBegin.IsZero() {
+		return
+	}
+
+	this.LastTurnDuration = tryToUpdateTimeAndSendToChannel(
+		turnChannel, this.TurnBegin, t, this.LastTurnDuration)
+}
+
+func (this *TurnContext) UpdateSessionTime(sessionChannel DurationChannel, t time.Time) {
+	if this.SessionBegin.IsZero() {
+		this.SessionBegin = t
+	}
+
+	this.LastSessionDuration = tryToUpdateTimeAndSendToChannel(
+		sessionChannel, this.SessionBegin, t, this.LastSessionDuration)
+}
+
+func (this *TurnContext) Update(turnChannel DurationChannel, sessionChannel DurationChannel, t time.Time) {
+	this.UpdateSessionTime(sessionChannel, t)
+	this.UpdateTurnTime(turnChannel, t)
 }
 
 type Timer struct {
-	Context           *TurnContext
-	TurnLogic         ITurnLogic
-	CurrentStateLabel TimerInternalStateLabel
-	States            StatesMap
-	DurationChannel   DurationChannel
+	Context                *TurnContext
+	TurnLogic              ITurnLogic
+	CurrentStateLabel      TimerInternalStateLabel
+	States                 StatesMap
+	TurnDurationChannel    DurationChannel
+	SessionDurationChannel DurationChannel
 }
 
 func (timer *Timer) CurrentState() ITimerIntenalState {
@@ -98,7 +120,7 @@ func (timer *Timer) CurrentState() ITimerIntenalState {
 func (timer *Timer) Step(t time.Time) {
 	currentState := timer.CurrentState()
 	timer.CurrentStateLabel = currentState.ChangeToState(timer.TurnLogic, t)
-	timer.Context.Update(timer.DurationChannel, t)
+	timer.Context.Update(timer.TurnDurationChannel, timer.SessionDurationChannel, t)
 }
 
 // Implementing states
@@ -122,7 +144,7 @@ type TimerTimeIsCriticalState struct {
 type TimerTimeIsOverState struct {
 }
 
-func NewTimer(logic ITurnLogic, channel DurationChannel) *Timer {
+func NewTimer(logic ITurnLogic, turnChannel DurationChannel, sessionChannel DurationChannel) *Timer {
 	context := &TurnContext{}
 	timer := &Timer{context, logic, STATE_INITIAL, StatesMap{
 		STATE_INITIAL:                  &TimerInitialState{},
@@ -130,7 +152,7 @@ func NewTimer(logic ITurnLogic, channel DurationChannel) *Timer {
 		STATE_TIME_IS_OK:               &TimerTimeIsOkState{context},
 		STATE_TIME_IS_CRITICAL:         &TimerTimeIsCriticalState{context},
 		STATE_TIME_IS_OVER:             &TimerTimeIsOverState{},
-	}, channel}
+	}, turnChannel, sessionChannel}
 
 	return timer
 }
@@ -152,7 +174,7 @@ func (this *TimerWaitingNextParticipantState) ChangeToState(logic ITurnLogic, ti
 func (this *TimerTimeIsOkState) ChangeToState(logic ITurnLogic, t time.Time) TimerInternalStateLabel {
 	this.Context.SetTurnBeginIfNotDefined(t)
 
-	if this.Context.Begin.Add(logic.TurnTimeInfo().RelaxAndCodeDuration).Before(t) {
+	if this.Context.TurnBegin.Add(logic.TurnTimeInfo().RelaxAndCodeDuration).Before(t) {
 		logic.OnTimeGetsCritical(t)
 		return STATE_TIME_IS_CRITICAL
 	}
