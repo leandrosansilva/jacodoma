@@ -4,6 +4,7 @@ import (
 	. "./src/jacodoma"
 	"bufio"
 	"fmt"
+	"math/rand"
 	"os"
 	"time"
 )
@@ -55,6 +56,9 @@ func (logic *TurnLogic) TurnTimeInfo() *TurnTimeInfo {
 
 func main() {
 	participants, _ := LoadParticipantsFromFile("users.jcdm")
+
+	rand.Seed(time.Now().Unix())
+	participants.Shuffle()
 
 	turnInfo := TurnTimeInfo{10 * time.Second, 5 * time.Second}
 
