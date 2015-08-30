@@ -32,7 +32,8 @@ Rectangle {
     id: "timer"
     text: formatTime(ctrl.turnDuration)
     y: 30
-    font.pointSize: 24; font.bold: true
+    font.pointSize: 24; 
+    font.bold: true
   }
 
   Text {

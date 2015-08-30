@@ -9,6 +9,7 @@ import (
 	"image"
 	"image/jpeg"
 	"image/png"
+	"math/rand"
 	"time"
 )
 
@@ -190,6 +191,9 @@ func main() {
 	if participants.Length() == 0 {
 		panic("There is no participants :-(")
 	}
+
+	rand.Seed(time.Now().Unix())
+	participants.Shuffle()
 
 	turnInfo := TurnTimeInfo{20 * time.Second, 10 * time.Second}
 

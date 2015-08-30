@@ -3,6 +3,7 @@ package jacodoma
 import (
 	"bufio"
 	"errors"
+	"math/rand"
 	"os"
 	"regexp"
 )
@@ -65,6 +66,13 @@ func LoadParticipantsFromFile(filename string) (Participants, error) {
 	}
 
 	return Participants{participants}, nil
+}
+
+func (this *Participants) Shuffle() {
+	for i := range this.participants {
+		j := rand.Intn(i + 1)
+		this.participants[i], this.participants[j] = this.participants[j], this.participants[i]
+	}
 }
 
 func BuildParticipantsFromArray(participants []Participant) Participants {
