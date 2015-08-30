@@ -100,15 +100,20 @@ func (this *TimerExecutor) Execute(end time.Time, readyTime time.Time) {
 }
 
 type FakeTimerUi struct {
-	times []time.Duration
+	turnTimes    []time.Duration
+	sessionTimes []time.Duration
 }
 
 func NewFakeTimerUi() *FakeTimerUi {
 	return &FakeTimerUi{}
 }
 
-func (ui *FakeTimerUi) Update(d time.Duration) {
-	ui.times = append(ui.times, d)
+func (ui *FakeTimerUi) UpdateTimer(d time.Duration) {
+	ui.turnTimes = append(ui.turnTimes, d)
+}
+
+func (ui *FakeTimerUi) UpdateSessionTime(d time.Duration) {
+	ui.sessionTimes = append(ui.sessionTimes, d)
 }
 
 func TestCodingDojoWithFourParticipants(t *testing.T) {
@@ -122,24 +127,27 @@ func TestCodingDojoWithFourParticipants(t *testing.T) {
 		{"Jon Doe", "joe@doe.com"},
 	}))
 
-	channel := make(DurationChannel, 0)
+	turnTimerChannel := make(DurationChannel, 0)
+	sessionTimerChannel := make(DurationChannel, 0)
 
 	ui := NewFakeTimerUi()
 
 	// user interface loop
 	go func() {
 		for {
-			s := <-channel
-
-			if s == -1 {
-				return
+			select {
+			case s := <-turnTimerChannel:
+				if s == -1 {
+					return
+				}
+				ui.UpdateTimer(s)
+			case s := <-sessionTimerChannel:
+				ui.UpdateSessionTime(s)
 			}
-
-			ui.Update(s)
 		}
 	}()
 
-	timer := NewTimer(logic, channel)
+	timer := NewTimer(logic, turnTimerChannel, sessionTimerChannel)
 
 	genesis := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 
@@ -149,7 +157,7 @@ func TestCodingDojoWithFourParticipants(t *testing.T) {
 		Convey("First Participant Turn", func() {
 			begin := ex.Time
 
-			// runs from 00:00 to 05:11
+			// runs from 00:00 to 05:20
 			ex.Execute(begin.Add(5*time.Minute+20*time.Second), begin.Add(10*time.Second))
 
 			So(len(logic.Actions), should.Equal, 6)
@@ -202,10 +210,14 @@ func TestCodingDojoWithFourParticipants(t *testing.T) {
 		})
 
 		Convey("Times received by the timer", func() {
-			channel <- -1
 			d := ex.Time.Sub(genesis)
 			So(d, should.Equal, time.Second*680)
-			So(len(ui.times), should.Equal, 604)
+			So(len(ui.turnTimes), should.Equal, 604)
+		})
+
+		Convey("Session Duration", func() {
+			So(len(ui.sessionTimes), should.Equal, 681)
+			So(ui.sessionTimes[0], should.Equal, 0)
 		})
 	})
 }

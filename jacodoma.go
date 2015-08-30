@@ -60,20 +60,23 @@ func main() {
 
 	logic := &TurnLogic{turnInfo, participants, 0, false}
 
-	channel := make(DurationChannel, 0)
+	timerChannel := make(DurationChannel, 0)
+	turnTimeChannel := make(DurationChannel, 0)
 
-	timer := NewTimer(logic, channel)
-
-	timer.Step(time.Time{})
+	timer := NewTimer(logic, timerChannel, turnTimeChannel)
 
 	ticker := time.NewTicker(100 * time.Millisecond)
 
 	// ui loop
 	go func() {
 		for {
-			d := <-channel
-			r := turnInfo.RelaxAndCodeDuration + turnInfo.HurryUpDuration - d
-			fmt.Printf("time: %s\n", r)
+			select {
+			case d := <-timerChannel:
+				r := turnInfo.RelaxAndCodeDuration + turnInfo.HurryUpDuration - d
+				fmt.Printf("time: %s\n", r)
+			case d := <-turnTimeChannel:
+				fmt.Printf("total session time: %s\n", d)
+			}
 		}
 	}()
 
