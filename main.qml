@@ -24,16 +24,38 @@ Rectangle {
            + padTime(min.toString()) + ":" + padTime(sec.toString())
   }
 
+  function formatTimer(duration) {
+    var remaining = ctrl.info.totalTurnTime() - duration
+    // workaround for small negative values :-)
+    return formatTime(remaining <= 0 ? 0 : remaining)
+  }
+
   function buildParticipantAvatarSourceUrl(email) {
     return "image://gravatar/" + email
   }
 
-  Text {
-    id: "timer"
-    text: formatTime(ctrl.turnDuration)
+  function colorFromState(state) {
+    var map = {
+      "start" : "lightgreen",
+      "hurry_up" : "yellow",
+      "waiting_participant" : "lightblue",
+      "time_over" : "red"
+    }
+
+    return map[state]
+  }
+
+  Rectangle {
     y: 30
-    font.pointSize: 24; 
-    font.bold: true
+    width: childrenRect.width
+    height: childrenRect.height
+    color: colorFromState(ctrl.state) 
+    Text {
+      id: "timer"
+      text: formatTimer(ctrl.turnDuration)
+      font.pointSize: 24; 
+      font.bold: true
+    }
   }
 
   Text {
@@ -41,19 +63,9 @@ Rectangle {
     y: 150
   }
 
-  Text {
-    text: ctrl.state
-    y: 200
-  }
-
-  Text {
-    text: ctrl.participants.get(ctrl.currentParticipantIndex).email
-    y: 250
-  }
-
   Button {
     function buttonLabel() {
-      return "Start: " + ctrl.participants.get(ctrl.currentParticipantIndex).name
+      return "Start"
     }
 
     y: 300

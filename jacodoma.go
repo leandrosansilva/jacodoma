@@ -50,6 +50,18 @@ func (info *TurnInformation) StartsWaitingNextParticipant(index int) {
 	info.ParticipantChannel <- index
 }
 
+func (info *TurnInformation) TotalTurnTime() int64 {
+	return int64(info.Info.RelaxAndCodeDuration + info.Info.HurryUpDuration)
+}
+
+func (info *TurnInformation) HurryUpDuration() int64 {
+	return int64(info.Info.HurryUpDuration)
+}
+
+func (info *TurnInformation) RelaxAndCodeDuration() int64 {
+	return int64(info.Info.RelaxAndCodeDuration)
+}
+
 type TurnLogic struct {
 	info *TurnInformation
 }
