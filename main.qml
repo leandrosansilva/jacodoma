@@ -20,7 +20,7 @@ Rectangle {
 
     return (hour == 0 
               ? "" 
-              : padTime(hour) + ":") 
+              : padTime(hour.toString()) + ":") 
            + padTime(min.toString()) + ":" + padTime(sec.toString())
   }
 
