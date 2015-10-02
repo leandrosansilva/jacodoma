@@ -1,10 +1,12 @@
-import QtQuick 2.0
+import QtQuick 2.2
 import QtQuick.Controls 1.1
 
-Rectangle {
+ApplicationWindow {
   id: root
-  width: 1000; 
-  height: 700
+  visible: true
+  width: 640
+  height: 480
+  visibility: "FullScreen"
   color: "lightgray"
 
   function padTime(time) {
