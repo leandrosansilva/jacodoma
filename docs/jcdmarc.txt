@@ -8,7 +8,7 @@ TurnTime = 5min
 Critical = 4min
 UseSoundNotification = true
 UseSystemNotification = true
-SoundNotificationSound = beep.ogg
+SoundNotificationFilename = beep.ogg
 LockScreenOnTimeout = true
 ShuffleUsersOrder = true
   
