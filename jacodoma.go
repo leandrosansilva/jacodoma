@@ -1,12 +1,13 @@
 package main
 
 import (
-	. "./src/jacodoma"
 	"bufio"
 	"fmt"
 	"math/rand"
 	"os"
 	"time"
+
+	. "./src/jacodoma"
 )
 
 func init() {
