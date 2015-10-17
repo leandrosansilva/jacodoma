@@ -30,26 +30,26 @@ func (this *ConfigDuration) UnmarshalText(text []byte) error {
 type ProjectConfig struct {
 	Session struct {
 		ExerciseReference         []string
-		NotifyBadBehaviour        bool           `default:false`
-		TurnTime                  ConfigDuration `default:"4m"`
-		Critical                  ConfigDuration `default:"1m"`
-		UseSoundNotification      bool           `default:true`
-		UseSystemNotification     bool           `default:true`
-		SoundNotificationFilename string         `default:"sound.ogg"`
-		LockScreenOnTimeout       bool           `default:true`
-		ShuffleUsersOrder         bool           `default:true`
+		NotifyBadBehaviour        bool `default:"false"`
+		TurnTime                  ConfigDuration
+		Critical                  ConfigDuration
+		UseSoundNotification      bool   `default:"true"`
+		UseSystemNotification     bool   `default:"true"`
+		SoundNotificationFilename string `default:"sound.ogg"`
+		LockScreenOnTimeout       bool   `default:"true"`
+		ShuffleUsersOrder         bool   `default:"true"`
 	}
 
 	Tests struct {
 		Command       string
-		OnEveryChange bool           `default:"true"`
-		OnTimeout     ConfigDuration `default:"10s"`
+		OnEveryChange bool `default:"true"`
+		OnTimeout     ConfigDuration
 		Files         string
 	}
 
 	Project struct {
 		VC                  string `default:"Git"`
-		CommitOnEveryChange bool   `default:true`
+		CommitOnEveryChange bool   `default:"true"`
 		SourceFiles         string
 	}
 
@@ -63,9 +63,16 @@ type ProjectConfig struct {
 	}
 }
 
+func SetConfigDefaults(config *ProjectConfig) {
+	defaults.SetDefaults(config)
+	config.Session.TurnTime = ConfigDuration(4 * time.Minute)
+	config.Session.Critical = ConfigDuration(1 * time.Minute)
+	config.Tests.OnTimeout = ConfigDuration(10 * time.Second)
+}
+
 func LoadProjectConfigFile(filename string) (ProjectConfig, error) {
 	var config ProjectConfig
-	defaults.SetDefaults(&config)
+	SetConfigDefaults(&config)
 	err := gcfg.ReadFileInto(&config, filename)
 	return config, err
 }

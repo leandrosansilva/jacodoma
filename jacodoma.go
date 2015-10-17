@@ -195,6 +195,15 @@ func NewQmlGui(info *TurnInformation, turnTimeChannel, sessionTimeChannel Durati
 }
 
 func main() {
+	rand.Seed(time.Now().Unix())
+
+	config, err := LoadProjectConfigFile("config.jcdm")
+
+	if err != nil {
+		fmt.Printf("Error loading config file: %s\n", err)
+		os.Exit(1)
+	}
+
 	participants, err := LoadParticipantsFromFile("users.jcdm")
 
 	if err != nil {
@@ -206,15 +215,6 @@ func main() {
 		fmt.Printf("There is no participants :-(")
 		os.Exit(1)
 	}
-
-	config, err := LoadProjectConfigFile("config.jcdm")
-
-	if err != nil {
-		fmt.Printf("Error loading config file: %s\n", err)
-		os.Exit(1)
-	}
-
-	rand.Seed(time.Now().Unix())
 
 	if config.Session.ShuffleUsersOrder {
 		participants.Shuffle()

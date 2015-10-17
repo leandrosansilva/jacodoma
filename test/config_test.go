@@ -45,7 +45,7 @@ Skin = Default`
 	incompleteFileContent := `
 [Session]
 ExerciseReference = http://problems.example3.com/puzzle-3
-TurnTime = 5m
+TurnTime = 4m
   
 [Project]
 VC = Git
@@ -77,10 +77,12 @@ SourceFiles = src/**.go`
 		So(err, should.Equal, nil)
 		So(config, should.NotEqual, ProjectConfig{})
 
-		So(config.Session.TurnTime, should.Equal, 5*time.Minute)
-		So(config.Session.Critical, should.Equal, 4*time.Minute)
-
+		So(config.Session.TurnTime, should.Equal, 4*time.Minute)
+		So(config.Session.Critical, should.Equal, 1*time.Minute)
+		So(config.Tests.OnTimeout, should.Equal, 10*time.Second)
 		So(config.Report.DbFile, should.Equal, "db.jcdmdb")
+
+		So(config.Session.ShuffleUsersOrder, should.BeTrue)
 
 		So(len(config.Session.ExerciseReference), should.Equal, 1)
 		So(config.Session.ExerciseReference[0], should.Equal, "http://problems.example3.com/puzzle-3")
