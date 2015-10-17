@@ -1,7 +1,7 @@
 package jacodoma
 
 import (
-	. "../src/jacodoma"
+	. "../src"
 	"github.com/smartystreets/assertions/should"
 	. "github.com/smartystreets/goconvey/convey"
 	"io/ioutil"
