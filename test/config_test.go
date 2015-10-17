@@ -17,7 +17,7 @@ ExerciseReference = http://problems.example.com/puzzle-1
 ExerciseReference = http://problems.example2.com/puzzle-2
 NotifyBadBehaviour = true
 TurnTime = 5m
-Critical = 4m
+Critical = 1m
 UseSoundNotification = true
 UseSystemNotification = true
 SoundNotificationFilename = beep.ogg
@@ -46,7 +46,6 @@ Skin = Default`
 [Session]
 ExerciseReference = http://problems.example3.com/puzzle-3
 TurnTime = 5m
-Critical = 4m
   
 [Project]
 VC = Git

@@ -14,6 +14,10 @@ func (this *ConfigDuration) UnmarshalText(text []byte) error {
 
 	b.Write(text)
 
+	if len(b.String()) == 0 {
+		return nil
+	}
+
 	duration, err := time.ParseDuration(b.String())
 
 	if err == nil {
@@ -27,8 +31,8 @@ type ProjectConfig struct {
 	Session struct {
 		ExerciseReference         []string
 		NotifyBadBehaviour        bool           `default:false`
-		TurnTime                  ConfigDuration `default:"5m"`
-		Critical                  ConfigDuration `default:"4m"`
+		TurnTime                  ConfigDuration `default:"4m"`
+		Critical                  ConfigDuration `default:"1m"`
 		UseSoundNotification      bool           `default:true`
 		UseSystemNotification     bool           `default:true`
 		SoundNotificationFilename string         `default:"sound.ogg"`

@@ -56,12 +56,27 @@ func (logic *TurnLogic) TurnTimeInfo() *TurnTimeInfo {
 }
 
 func main() {
-	participants, _ := LoadParticipantsFromFile("users.jcdm")
+	participants, err := LoadParticipantsFromFile("users.jcdm")
+
+	if err != nil {
+		fmt.Printf("Error loading participants file: %s\n", err)
+		os.Exit(1)
+	}
+
+	config, err := LoadProjectConfigFile("config.jcdm")
+
+	if err != nil {
+		fmt.Printf("Error loading config file: %s\n", err)
+		os.Exit(1)
+	}
 
 	rand.Seed(time.Now().Unix())
-	participants.Shuffle()
 
-	turnInfo := TurnTimeInfo{10 * time.Second, 5 * time.Second}
+	if config.Session.ShuffleUsersOrder {
+		participants.Shuffle()
+	}
+
+	turnInfo := TurnTimeInfo{time.Duration(config.Session.TurnTime), time.Duration(config.Session.Critical)}
 
 	logic := &TurnLogic{turnInfo, participants, 0, false}
 
