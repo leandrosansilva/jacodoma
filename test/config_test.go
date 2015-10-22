@@ -63,6 +63,8 @@ SourceFiles = src/**.go`
 
 		So(config.Tests.Command, should.Equal, "go test")
 
+		So(config.Session.TurnTime, should.Equal, 5*time.Minute)
+
 		So(len(config.Session.ExerciseReference), should.Equal, 2)
 		So(config.Session.ExerciseReference[0], should.Equal, "http://problems.example.com/puzzle-1")
 		So(config.Session.ExerciseReference[1], should.Equal, "http://problems.example2.com/puzzle-2")
