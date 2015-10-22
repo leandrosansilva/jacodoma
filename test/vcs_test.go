@@ -4,6 +4,7 @@ import (
 	. "../src"
 	"github.com/smartystreets/assertions/should"
 	. "github.com/smartystreets/goconvey/convey"
+	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -34,7 +35,12 @@ func TestVcs(t *testing.T) {
 		fileContent := `Hi, I am a file!`
 		filename := dirName + "/README"
 
-		ioutil.WriteFile(filename, []byte(fileContent), 0644)
+		ioutil.WriteFile("README", []byte(fileContent), 0644)
 
+		meta := CreateCommitMetadata("Leandro", "leandrosansilva@gmail.com")
+
+		err = repo.CommitFiles([]string{filename}, meta)
+
+		So(err, should.Equal, nil)
 	})
 }

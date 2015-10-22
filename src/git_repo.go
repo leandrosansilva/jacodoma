@@ -4,10 +4,16 @@ import (
 	"errors"
 	git "github.com/libgit2/git2go"
 	"os"
+	"time"
 )
 
 type Repository struct {
 	Repo *git.Repository
+}
+
+type CommitMetadata struct {
+	Name  string
+	Email string
 }
 
 func CreateVcsRepository(dirName string) (Repository, error) {
@@ -29,4 +35,51 @@ func CreateVcsRepository(dirName string) (Repository, error) {
 	}
 
 	return Repository{gitRepo}, nil
+}
+
+func (this *Repository) CommitFiles(filenames []string, meta CommitMetadata) error {
+	message := "empty message"
+
+	index, err := this.Repo.Index()
+
+	if err != nil {
+		return err
+	}
+
+	for _, filename := range filenames {
+		err := index.AddByPath(filename)
+		if err != nil {
+			return err
+		}
+	}
+
+	treeId, err := index.WriteTree()
+
+	if err != nil {
+		return err
+	}
+
+	tree, err := this.Repo.LookupTree(treeId)
+
+	if err != nil {
+		return err
+	}
+
+	sig := &git.Signature{
+		Name:  meta.Name,
+		Email: meta.Email,
+		When:  time.Unix(0, 0),
+	}
+
+	_, err = this.Repo.CreateCommit("HEAD", sig, sig, message, tree)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func CreateCommitMetadata(name, email string) CommitMetadata {
+	return CommitMetadata{name, email}
 }
