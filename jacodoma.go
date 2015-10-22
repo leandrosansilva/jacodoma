@@ -189,24 +189,28 @@ func (this *QmlGui) Run() error {
 	})
 }
 
+func NewTurnTimeInfo(turnTime, criticalTime time.Duration) TurnTimeInfo {
+	return TurnTimeInfo{turnTime - criticalTime, criticalTime}
+}
+
 func NewQmlGui(info *TurnInformation, turnTimeChannel, sessionTimeChannel DurationChannel) *QmlGui {
 	control := &Control{info, 0, 0, "", 0, &info.Participants, info.Participants.Length()}
 	return &QmlGui{info, turnTimeChannel, sessionTimeChannel, control}
 }
 
 func main() {
+	var config ProjectConfig
+	var participants Participants
+	var err error
+
 	rand.Seed(time.Now().Unix())
 
-	config, err := LoadProjectConfigFile("config.jcdm")
-
-	if err != nil {
+	if config, err = LoadProjectConfigFile("config.jcdm"); err != nil {
 		fmt.Printf("Error loading config file: %s\n", err)
 		os.Exit(1)
 	}
 
-	participants, err := LoadParticipantsFromFile("users.jcdm")
-
-	if err != nil {
+	if participants, err = LoadParticipantsFromFile("users.jcdm"); err != nil {
 		fmt.Printf("Error loading participants file: %s\n", err)
 		os.Exit(1)
 	}
@@ -220,7 +224,7 @@ func main() {
 		participants.Shuffle()
 	}
 
-	turnInfo := TurnTimeInfo{time.Duration(config.Session.TurnTime), time.Duration(config.Session.Critical)}
+	turnInfo := NewTurnTimeInfo(time.Duration(config.Session.TurnTime), time.Duration(config.Session.Critical))
 
 	info := &TurnInformation{
 		turnInfo,
