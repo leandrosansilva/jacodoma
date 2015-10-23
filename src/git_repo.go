@@ -59,21 +59,21 @@ func (this *Repository) CommitFiles(filenames []string, meta CommitMetadata) err
 		return err
 	}
 
-  head, err := tis.Repo.Head()
+	tree, err := this.Repo.LookupTree(treeId)
 
-	if err != nil {
-		return err
-	}
+	currentTip, err := func() (*git.Commit, error) {
+		head, err := this.Repo.Head()
 
-  treeToCommit, err := func(), git.Reference*, error {
-    if head == nil {
-      return this.Repo.LookupTree(treeId)
-    }
+		if err != nil {
+			return nil, err
+		}
 
-    currentTip, err := 
-  }()
+		if head == nil {
+			return nil, nil
+		}
 
-	
+		return this.Repo.LookupCommit(head.Target())
+	}()
 
 	if err != nil {
 		return err
@@ -85,7 +85,7 @@ func (this *Repository) CommitFiles(filenames []string, meta CommitMetadata) err
 		When:  time.Unix(0, 0),
 	}
 
-	_, err = this.Repo.CreateCommit("HEAD", sig, sig, message, tree)
+	_, err = this.Repo.CreateCommit("HEAD", sig, sig, message, tree, currentTip)
 
 	if err != nil {
 		return err
