@@ -21,6 +21,7 @@ type TurnInformation struct {
 	Ready              bool
 	State              chan string
 	ParticipantChannel chan int
+	CommitChannel      chan Participant
 }
 
 func (info *TurnInformation) ChangeToNextParticipantIndex() int {
@@ -40,6 +41,7 @@ func (info *TurnInformation) HurryUp() {
 
 func (info *TurnInformation) TimeIsOver() {
 	info.State <- "time_over"
+	info.CommitChannel <- info.Participants.Get(info.Index)
 }
 
 func (info *TurnInformation) ParticipantStarts() {
@@ -205,6 +207,8 @@ func main() {
 
 	rand.Seed(time.Now().Unix())
 
+	projectDirectory, _ := os.Getwd()
+
 	if config, err = LoadProjectConfigFile("config.jcdm"); err != nil {
 		fmt.Printf("Error loading config file: %s\n", err)
 		os.Exit(1)
@@ -230,7 +234,9 @@ func main() {
 		turnInfo,
 		participants, 0, false,
 		make(chan string),
-		make(chan int)}
+		make(chan int),
+		make(chan Participant),
+	}
 
 	logic := &TurnLogic{info}
 
@@ -246,6 +252,23 @@ func main() {
 		ticker := time.NewTicker(100 * time.Millisecond)
 		for t := range ticker.C {
 			timer.Step(t)
+		}
+	}()
+
+	repository, err := CreateVcsRepository(projectDirectory)
+
+	if err != nil {
+		fmt.Printf("Error: %s\n", err)
+	}
+
+	// Repository loop
+	go func() {
+		for {
+			participant := <-info.CommitChannel
+			meta := CreateCommitMetadata(participant.Name, participant.Email, time.Now())
+			if err := repository.CommitFiles(config.Project.SourceFiles, meta); err != nil {
+				fmt.Println(err)
+			}
 		}
 	}()
 

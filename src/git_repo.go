@@ -40,6 +40,26 @@ func CreateVcsRepository(dirName string) (Repository, error) {
 	return Repository{gitRepo}, nil
 }
 
+func resolveGlobs(globs []string, basePath string) ([]string, error) {
+	filenames := make([]string, 0)
+
+	for _, glob := range globs {
+		p := path.Join(basePath, glob)
+
+		paths, err := filepath.Glob(p)
+
+		if err != nil {
+			return []string{}, err
+		}
+
+		for _, filename := range paths {
+			filenames = append(filenames, filepath.Base(filename))
+		}
+	}
+
+	return filenames, nil
+}
+
 func (this *Repository) CommitFiles(globs []string, meta CommitMetadata) error {
 	// TODO: refactor this method, which is doing too many things!
 
@@ -51,21 +71,10 @@ func (this *Repository) CommitFiles(globs []string, meta CommitMetadata) error {
 		return err
 	}
 
-	filenames := make([]string, 0)
+	filenames, err := resolveGlobs(globs, filepath.Dir(filepath.Clean(this.Repo.Path())))
 
-	for _, glob := range globs {
-		p := path.Join(filepath.Dir(filepath.Clean(this.Repo.Path())), glob)
-
-		paths, err := filepath.Glob(p)
-
-		if err != nil {
-			return err
-		}
-
-		for _, completeFilename := range paths {
-			filename := filepath.Base(completeFilename)
-			filenames = append(filenames, filename)
-		}
+	if err != nil {
+		return err
 	}
 
 	if len(filenames) == 0 {
