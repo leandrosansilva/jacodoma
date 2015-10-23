@@ -59,7 +59,21 @@ func (this *Repository) CommitFiles(filenames []string, meta CommitMetadata) err
 		return err
 	}
 
-	tree, err := this.Repo.LookupTree(treeId)
+  head, err := tis.Repo.Head()
+
+	if err != nil {
+		return err
+	}
+
+  treeToCommit, err := func(), git.Reference*, error {
+    if head == nil {
+      return this.Repo.LookupTree(treeId)
+    }
+
+    currentTip, err := 
+  }()
+
+	
 
 	if err != nil {
 		return err
