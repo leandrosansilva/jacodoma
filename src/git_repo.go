@@ -61,37 +61,31 @@ func (this *Repository) CommitFiles(filenames []string, meta CommitMetadata) err
 
 	tree, err := this.Repo.LookupTree(treeId)
 
-	currentTip, err := func() (*git.Commit, error) {
-		head, err := this.Repo.Head()
-
-		if err != nil {
-			return nil, err
-		}
-
-		if head == nil {
-			return nil, nil
-		}
-
-		return this.Repo.LookupCommit(head.Target())
-	}()
-
-	if err != nil {
-		return err
-	}
-
 	sig := &git.Signature{
 		Name:  meta.Name,
 		Email: meta.Email,
 		When:  time.Unix(0, 0),
 	}
 
-	_, err = this.Repo.CreateCommit("HEAD", sig, sig, message, tree, currentTip)
+	head, _ := this.Repo.Head()
+
+	currentTip := (*git.Commit)(nil)
+
+	if head != nil {
+		currentTip, err = this.Repo.LookupCommit(head.Target())
+	}
 
 	if err != nil {
 		return err
 	}
 
-	return nil
+	if currentTip != nil {
+		_, err := this.Repo.CreateCommit("HEAD", sig, sig, message, tree, currentTip)
+		return err
+	}
+
+	_, err = this.Repo.CreateCommit("HEAD", sig, sig, message, tree)
+	return err
 }
 
 func CreateCommitMetadata(name, email string) CommitMetadata {
