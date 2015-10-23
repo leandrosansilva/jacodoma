@@ -4,6 +4,8 @@ import (
 	"errors"
 	git "github.com/libgit2/git2go"
 	"os"
+	"path"
+	"path/filepath"
 	"time"
 )
 
@@ -14,6 +16,7 @@ type Repository struct {
 type CommitMetadata struct {
 	Name  string
 	Email string
+	Time  time.Time
 }
 
 func CreateVcsRepository(dirName string) (Repository, error) {
@@ -37,13 +40,36 @@ func CreateVcsRepository(dirName string) (Repository, error) {
 	return Repository{gitRepo}, nil
 }
 
-func (this *Repository) CommitFiles(filenames []string, meta CommitMetadata) error {
+func (this *Repository) CommitFiles(globs []string, meta CommitMetadata) error {
+	// TODO: refactor this method, which is doing too many things!
+
 	message := "empty message"
 
 	index, err := this.Repo.Index()
 
 	if err != nil {
 		return err
+	}
+
+	filenames := make([]string, 0)
+
+	for _, glob := range globs {
+		p := path.Join(filepath.Dir(filepath.Clean(this.Repo.Path())), glob)
+
+		paths, err := filepath.Glob(p)
+
+		if err != nil {
+			return err
+		}
+
+		for _, completeFilename := range paths {
+			filename := filepath.Base(completeFilename)
+			filenames = append(filenames, filename)
+		}
+	}
+
+	if len(filenames) == 0 {
+		return errors.New("No files do add to the repository!")
 	}
 
 	for _, filename := range filenames {
@@ -64,7 +90,7 @@ func (this *Repository) CommitFiles(filenames []string, meta CommitMetadata) err
 	sig := &git.Signature{
 		Name:  meta.Name,
 		Email: meta.Email,
-		When:  time.Unix(0, 0),
+		When:  meta.Time,
 	}
 
 	head, _ := this.Repo.Head()
@@ -88,6 +114,6 @@ func (this *Repository) CommitFiles(filenames []string, meta CommitMetadata) err
 	return err
 }
 
-func CreateCommitMetadata(name, email string) CommitMetadata {
-	return CommitMetadata{name, email}
+func CreateCommitMetadata(name, email string, t time.Time) CommitMetadata {
+	return CommitMetadata{name, email, t}
 }

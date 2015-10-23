@@ -44,13 +44,13 @@ type ProjectConfig struct {
 		Command       string
 		OnEveryChange bool `default:"true"`
 		OnTimeout     ConfigDuration
-		Files         string
+		Files         []string
 	}
 
 	Project struct {
 		VC                  string `default:"Git"`
 		CommitOnEveryChange bool   `default:"true"`
-		SourceFiles         string
+		SourceFiles         []string
 	}
 
 	Report struct {
