@@ -3,6 +3,7 @@ package main
 import (
 	. "./src"
 	"bytes"
+	"flag"
 	"fmt"
 	"github.com/ftrvxmtrx/gravatar"
 	"gopkg.in/qml.v1"
@@ -11,62 +12,69 @@ import (
 	"image/png"
 	"math/rand"
 	"os"
+	"path"
 	"time"
 )
 
-type TurnInformation struct {
-	Info               TurnTimeInfo
-	Participants       Participants
-	Index              int
-	Ready              bool
-	State              chan string
-	ParticipantChannel chan int
-	CommitChannel      chan Participant
+type TurnControl struct {
+	Info                    TurnTimeInfo
+	Participants            Participants
+	Index                   int
+	Ready                   bool
+	State                   chan string
+	ParticipantIndexChannel chan int
+	CommitChannel           chan Participant
 }
 
-func (info *TurnInformation) ChangeToNextParticipantIndex() int {
+func NewTurnControl(info TurnTimeInfo, participants Participants) *TurnControl {
+	return &TurnControl{
+		info,
+		participants, 0, false,
+		make(chan string),
+		make(chan int),
+		make(chan Participant),
+	}
+}
+
+func (info *TurnControl) ChangeToNextParticipantIndex() int {
 	index := info.Index
 	info.Index = (info.Index + 1) % info.Participants.Length()
 	return index
 }
 
-func (info *TurnInformation) NextParticipantIndex() int {
-	// FIXME: this "rotational" logic should be in Participants{}
-	return (info.Index + 1) % info.Participants.Length()
-}
-
-func (info *TurnInformation) HurryUp() {
+func (info *TurnControl) HurryUp() {
 	info.State <- "hurry_up"
 }
 
-func (info *TurnInformation) TimeIsOver() {
-	info.State <- "time_over"
+func (info *TurnControl) TimeIsOver() {
+	fmt.Printf("Commiting participant with the index: %d\n", info.Index)
 	info.CommitChannel <- info.Participants.Get(info.Index)
+	info.State <- "time_over"
 }
 
-func (info *TurnInformation) ParticipantStarts() {
+func (info *TurnControl) ParticipantStarts() {
 	info.State <- "start"
 }
 
-func (info *TurnInformation) StartsWaitingNextParticipant(index int) {
+func (info *TurnControl) StartsWaitingNextParticipant(index int) {
 	info.State <- "waiting_participant"
-	info.ParticipantChannel <- index
+	info.ParticipantIndexChannel <- index
 }
 
-func (info *TurnInformation) TotalTurnTime() int64 {
+func (info *TurnControl) TotalTurnTime() int64 {
 	return int64(info.Info.RelaxAndCodeDuration + info.Info.HurryUpDuration)
 }
 
-func (info *TurnInformation) HurryUpDuration() int64 {
+func (info *TurnControl) HurryUpDuration() int64 {
 	return int64(info.Info.HurryUpDuration)
 }
 
-func (info *TurnInformation) RelaxAndCodeDuration() int64 {
+func (info *TurnControl) RelaxAndCodeDuration() int64 {
 	return int64(info.Info.RelaxAndCodeDuration)
 }
 
 type TurnLogic struct {
-	info *TurnInformation
+	info *TurnControl
 }
 
 func (logic *TurnLogic) OnTimeGetsCritical(t time.Time) {
@@ -104,7 +112,7 @@ func (logic *TurnLogic) TurnTimeInfo() *TurnTimeInfo {
 
 // Acts as model to the GUI
 type Control struct {
-	Info                    *TurnInformation
+	Info                    *TurnControl
 	TurnDuration            int64
 	SessionDuration         int64
 	State                   string
@@ -124,7 +132,7 @@ func (this *Control) SetParticipantReady() {
 }
 
 type QmlGui struct {
-	info               *TurnInformation
+	info               *TurnControl
 	turnTimeChannel    DurationChannel
 	sessionTimeChannel DurationChannel
 	ctrl               *Control
@@ -176,7 +184,10 @@ func (this *QmlGui) Run() error {
 					qml.Changed(this.ctrl, &this.ctrl.SessionDuration)
 				case this.ctrl.State = <-this.info.State:
 					qml.Changed(this.ctrl, &this.ctrl.State)
-				case this.ctrl.CurrentParticipantIndex = <-this.info.ParticipantChannel:
+				case this.ctrl.CurrentParticipantIndex = <-this.info.ParticipantIndexChannel:
+					if this.ctrl.CurrentParticipantIndex < 0 {
+						panic("Wrong index!")
+					}
 					qml.Changed(this.ctrl, &this.ctrl.CurrentParticipantIndex)
 				}
 			}
@@ -195,26 +206,57 @@ func NewTurnTimeInfo(turnTime, criticalTime time.Duration) TurnTimeInfo {
 	return TurnTimeInfo{turnTime - criticalTime, criticalTime}
 }
 
-func NewQmlGui(info *TurnInformation, turnTimeChannel, sessionTimeChannel DurationChannel) *QmlGui {
+func NewQmlGui(info *TurnControl, turnTimeChannel, sessionTimeChannel DurationChannel) *QmlGui {
 	control := &Control{info, 0, 0, "", 0, &info.Participants, info.Participants.Length()}
 	return &QmlGui{info, turnTimeChannel, sessionTimeChannel, control}
+}
+
+var (
+	projectDirectory string
+	showHelp         bool
+)
+
+func init() {
+	flag.BoolVar(&showHelp, "help", false, "Show this usage message")
+	flag.StringVar(&projectDirectory, "project", "", "Project directory (default to current directory)")
+}
+
+func parseCmdlineParams() {
+	flag.Parse()
+
+	if showHelp {
+		flag.Usage()
+		os.Exit(2)
+	}
+
+	if len(projectDirectory) > 0 {
+		return
+	}
+
+	var err error
+
+	if projectDirectory, err = os.Getwd(); err != nil {
+		fmt.Println("Invalid project directory")
+		os.Exit(1)
+	}
 }
 
 func main() {
 	var config ProjectConfig
 	var participants Participants
 	var err error
+	var repository Repository
+
+	parseCmdlineParams()
 
 	rand.Seed(time.Now().Unix())
 
-	projectDirectory, _ := os.Getwd()
-
-	if config, err = LoadProjectConfigFile("config.jcdm"); err != nil {
+	if config, err = LoadProjectConfigFile(path.Join(projectDirectory, "config.jcdm")); err != nil {
 		fmt.Printf("Error loading config file: %s\n", err)
 		os.Exit(1)
 	}
 
-	if participants, err = LoadParticipantsFromFile("users.jcdm"); err != nil {
+	if participants, err = LoadParticipantsFromFile(path.Join(projectDirectory, "users.jcdm")); err != nil {
 		fmt.Printf("Error loading participants file: %s\n", err)
 		os.Exit(1)
 	}
@@ -224,51 +266,44 @@ func main() {
 		os.Exit(1)
 	}
 
+	if repository, err = CreateVcsRepository(projectDirectory); err != nil {
+		fmt.Printf("Error: %s\n", err)
+		os.Exit(1)
+	}
+
 	if config.Session.ShuffleUsersOrder {
 		participants.Shuffle()
 	}
 
 	turnInfo := NewTurnTimeInfo(time.Duration(config.Session.TurnTime), time.Duration(config.Session.Critical))
 
-	info := &TurnInformation{
-		turnInfo,
-		participants, 0, false,
-		make(chan string),
-		make(chan int),
-		make(chan Participant),
-	}
+	control := NewTurnControl(turnInfo, participants)
 
-	logic := &TurnLogic{info}
+	// Repository loop
+	go func() {
+		for {
+			participant := <-control.CommitChannel
+			meta := CreateCommitMetadata(participant.Name, participant.Email, time.Now())
+			if err := repository.CommitFiles(config.Project.SourceFiles, meta); err != nil {
+				fmt.Println(err)
+			}
+		}
+	}()
+
+	logic := &TurnLogic{control}
 
 	turnTimeChannel := make(DurationChannel, 0)
 	sessionTimeChannel := make(DurationChannel, 0)
 
 	timer := NewTimer(logic, turnTimeChannel, sessionTimeChannel)
 
-	gui := NewQmlGui(info, turnTimeChannel, sessionTimeChannel)
+	gui := NewQmlGui(control, turnTimeChannel, sessionTimeChannel)
 
 	// timer ticker loop
 	go func() {
 		ticker := time.NewTicker(100 * time.Millisecond)
 		for t := range ticker.C {
 			timer.Step(t)
-		}
-	}()
-
-	repository, err := CreateVcsRepository(projectDirectory)
-
-	if err != nil {
-		fmt.Printf("Error: %s\n", err)
-	}
-
-	// Repository loop
-	go func() {
-		for {
-			participant := <-info.CommitChannel
-			meta := CreateCommitMetadata(participant.Name, participant.Email, time.Now())
-			if err := repository.CommitFiles(config.Project.SourceFiles, meta); err != nil {
-				fmt.Println(err)
-			}
 		}
 	}()
 
