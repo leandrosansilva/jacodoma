@@ -1,7 +1,6 @@
 package main
 
 import (
-	. "./src"
 	"bytes"
 	"flag"
 	"fmt"
@@ -10,6 +9,7 @@ import (
 	"image"
 	"image/jpeg"
 	"image/png"
+	. "jacodoma/src"
 	"math/rand"
 	"os"
 	"path"

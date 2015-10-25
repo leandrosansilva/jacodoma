@@ -1,10 +1,10 @@
 package jacodoma
 
 import (
-	. "../src"
 	"github.com/smartystreets/assertions/should"
 	. "github.com/smartystreets/goconvey/convey"
 	"io/ioutil"
+	. "jacodoma/src"
 	"os"
 	"testing"
 	"time"

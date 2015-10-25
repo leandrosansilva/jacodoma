@@ -1,10 +1,10 @@
 package jacodoma
 
 import (
-	. "../src"
 	"fmt"
 	"github.com/smartystreets/assertions/should"
 	. "github.com/smartystreets/goconvey/convey"
+	. "jacodoma/src"
 	"testing"
 	"time"
 )

@@ -1,0 +1,27 @@
+{
+	"ImportPath": "jacodoma",
+	"GoVersion": "go1.5.1",
+	"Deps": [
+		{
+			"ImportPath": "github.com/ftrvxmtrx/gravatar",
+			"Rev": "5aaa334f4e974f251f8049520e0decd9b50ae53f"
+		},
+		{
+			"ImportPath": "github.com/libgit2/git2go",
+			"Rev": "22da351b1e470074df1ba3f4c872d0b64c6b2046"
+		},
+		{
+			"ImportPath": "gopkg.in/gcfg.v1",
+			"Rev": "0ef1a8547f99b94fac9af5377dd72febba18f37c"
+		},
+		{
+			"ImportPath": "gopkg.in/mcuadros/go-defaults.v1",
+			"Comment": "v1.1.0",
+			"Rev": "ac8540f0fc7e0fb5f1eb9e25c6fd0b8db8f97eed"
+		},
+		{
+			"ImportPath": "gopkg.in/qml.v1",
+			"Rev": "2ee7e5ff737026a4dfa89801fac63561279040f4"
+		}
+	]
+}

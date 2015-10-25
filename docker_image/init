@@ -1,1 +1,11 @@
 #!/bin/bash
+
+set -e
+
+cd $GOPATH/src/jacodoma
+
+go get -v
+
+go build
+
+./jacodoma $@
