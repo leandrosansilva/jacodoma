@@ -36,10 +36,8 @@ func NewTurnControl(info TurnTimeInfo, participants Participants) *TurnControl {
 	}
 }
 
-func (info *TurnControl) ChangeToNextParticipantIndex() int {
-	index := info.Index
-	info.Index = (info.Index + 1) % info.Participants.Length()
-	return index
+func (info *TurnControl) NextParticipantIndex() int {
+	return (info.Index + 1) % info.Participants.Length()
 }
 
 func (info *TurnControl) HurryUp() {
@@ -57,10 +55,16 @@ func (info *TurnControl) ParticipantStarts() {
 }
 
 func (info *TurnControl) StartsWaitingNextParticipant(index int) {
+	fmt.Printf("Changing current index from %d to %d\n", info.Index, index)
+
 	info.State <- "waiting_participant"
-	info.ParticipantIndexChannel <- index
+
+	info.ParticipantIndexChannel <- info.Index
+
+	info.Index = index
 }
 
+// func() -> int64 are wrappers to QML
 func (info *TurnControl) TotalTurnTime() int64 {
 	return int64(info.Info.RelaxAndCodeDuration + info.Info.HurryUpDuration)
 }
@@ -103,7 +107,7 @@ func (logic *TurnLogic) NextParticipantIsReady() bool {
 }
 
 func (logic *TurnLogic) NextParticipantIndex() int {
-	return logic.info.ChangeToNextParticipantIndex()
+	return logic.info.NextParticipantIndex()
 }
 
 func (logic *TurnLogic) TurnTimeInfo() *TurnTimeInfo {
@@ -158,19 +162,21 @@ func gravatarImageProvider(email string, width, height int) image.Image {
 	return nil
 }
 
-func (this *QmlGui) Run() error {
+func (this *QmlGui) Run(config *ProjectConfig) error {
 	return qml.Run(func() error {
 		engine := qml.NewEngine()
 
 		engine.AddImageProvider("gravatar", gravatarImageProvider)
 
-		component, err := engine.LoadFile("main.qml")
+		component, err := engine.LoadFile(config.UI.Skin)
 
 		if err != nil {
 			return err
 		}
 
 		engine.Context().SetVar("ctrl", this.ctrl)
+
+		engine.Context().SetVar("config", config)
 
 		// ui loop
 		go func() {
@@ -185,6 +191,7 @@ func (this *QmlGui) Run() error {
 				case this.ctrl.State = <-this.info.State:
 					qml.Changed(this.ctrl, &this.ctrl.State)
 				case this.ctrl.CurrentParticipantIndex = <-this.info.ParticipantIndexChannel:
+					fmt.Printf("Notifying the UI with index: %d\n", this.ctrl.CurrentParticipantIndex)
 					if this.ctrl.CurrentParticipantIndex < 0 {
 						panic("Wrong index!")
 					}
@@ -283,7 +290,11 @@ func main() {
 	go func() {
 		for {
 			participant := <-control.CommitChannel
+
+			fmt.Printf("Participant to commit: %s\n", participant)
+
 			meta := CreateCommitMetadata(participant.Name, participant.Email, time.Now())
+
 			if err := repository.CommitFiles(config.Project.SourceFiles, meta); err != nil {
 				fmt.Println(err)
 			}
@@ -307,7 +318,7 @@ func main() {
 		}
 	}()
 
-	if err := gui.Run(); err != nil {
+	if err := gui.Run(&config); err != nil {
 		fmt.Printf("Error: %s\n", err)
 	}
 

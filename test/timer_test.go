@@ -43,7 +43,9 @@ func (logic *FakeTurnLogic) OnTimeIsOver(t time.Time) {
 func (logic *FakeTurnLogic) OnStartsWaitingNextParticipant(t time.Time, index int) {
 	logic.Actions = append(logic.Actions, FakeTimerAction{
 		t, "waiting_next_participant",
-		logic.Participants.Get(index)})
+		logic.Participants.Get(logic.CurrentParticipantIndex)})
+
+	logic.CurrentParticipantIndex = index
 }
 
 func (logic *FakeTurnLogic) BlockSession(t time.Time) {
@@ -55,9 +57,7 @@ func (logic *FakeTurnLogic) NextParticipantIsReady() bool {
 }
 
 func (logic *FakeTurnLogic) NextParticipantIndex() int {
-	index := logic.CurrentParticipantIndex
-	logic.CurrentParticipantIndex = (logic.CurrentParticipantIndex + 1) % logic.Participants.Length()
-	return index
+	return (logic.CurrentParticipantIndex + 1) % logic.Participants.Length()
 }
 
 func (logic *FakeTurnLogic) TurnTimeInfo() *TurnTimeInfo {

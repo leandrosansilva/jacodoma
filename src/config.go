@@ -59,13 +59,13 @@ type ProjectConfig struct {
 
 	UI struct {
 		Type string `default:"QML"`
-		Skin string `default:"default"`
+		Skin string `default:"main.qml"`
 	}
 }
 
 func SetConfigDefaults(config *ProjectConfig) {
 	defaults.SetDefaults(config)
-	config.Session.TurnTime = ConfigDuration(4 * time.Minute)
+	config.Session.TurnTime = ConfigDuration(5 * time.Minute)
 	config.Session.Critical = ConfigDuration(1 * time.Minute)
 	config.Tests.OnTimeout = ConfigDuration(10 * time.Second)
 }
