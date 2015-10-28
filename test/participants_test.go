@@ -9,6 +9,43 @@ import (
 	"testing"
 )
 
+func TestIndexing(t *testing.T) {
+	p := BuildParticipantsFromArray([]Participant{
+		{"Coding Dojo", "coding@do.jo"},
+		{"Manoel Ribas", "manoel@ribas.go"},
+		{"Juka Juke", "juka@ju.ke"},
+		{"Jon Doe", "joe@doe.com"},
+	})
+
+	Convey("Length is 4", t, func() {
+		So(p.Length(), should.Equal, 4)
+	})
+
+	Convey("After 0 is 1", t, func() {
+		So(p.NextIndex(0), should.Equal, 1)
+	})
+
+	Convey("After 1 is 2", t, func() {
+		So(p.NextIndex(1), should.Equal, 2)
+	})
+
+	Convey("After 3 is 0", t, func() {
+		So(p.NextIndex(3), should.Equal, 0)
+	})
+
+	Convey("Before 0 is 3", t, func() {
+		So(p.PreviousIndex(0), should.Equal, 3)
+	})
+
+	Convey("Before 1 is 0", t, func() {
+		So(p.PreviousIndex(1), should.Equal, 0)
+	})
+
+	Convey("Before 1 is 0", t, func() {
+		So(p.PreviousIndex(1), should.Equal, 0)
+	})
+}
+
 func TestParseParticipants(t *testing.T) {
 	Convey("Participant is Valid", t, func() {
 		p, _ := ParticipantFromString("Coding Dojo <coding@do.jo>")

@@ -57,7 +57,7 @@ func (logic *FakeTurnLogic) NextParticipantIsReady() bool {
 }
 
 func (logic *FakeTurnLogic) NextParticipantIndex() int {
-	return (logic.CurrentParticipantIndex + 1) % logic.Participants.Length()
+	return logic.Participants.NextIndex(logic.CurrentParticipantIndex)
 }
 
 func (logic *FakeTurnLogic) TurnTimeInfo() *TurnTimeInfo {

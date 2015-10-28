@@ -75,6 +75,24 @@ func (this *Participants) Shuffle() {
 	}
 }
 
+func modCalc(index, size, offset int) int {
+	i := (index + offset) % size
+
+	if i < 0 {
+		return i + size
+	}
+
+	return i
+}
+
+func (this *Participants) NextIndex(index int) int {
+	return modCalc(index, this.Length(), 1)
+}
+
+func (this *Participants) PreviousIndex(index int) int {
+	return modCalc(index, this.Length(), -1)
+}
+
 func BuildParticipantsFromArray(participants []Participant) Participants {
 	return Participants{participants}
 }

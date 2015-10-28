@@ -36,18 +36,8 @@ func NewTurnControl(info TurnTimeInfo, participants Participants) *TurnControl {
 	}
 }
 
-func modCalc(index, size, offset int) int {
-	i := (index + size) % size
-
-	if i < 0 {
-		return i + size
-	}
-
-	return i
-}
-
 func (info *TurnControl) NextParticipantIndex() int {
-	return modCalc(info.Index, info.Participants.Length(), 1)
+	return info.Participants.NextIndex(info.Index)
 }
 
 func (info *TurnControl) HurryUp() {
@@ -56,7 +46,7 @@ func (info *TurnControl) HurryUp() {
 
 func (info *TurnControl) TimeIsOver() {
 	// FIXME: extremely dirty workaround due design errors
-	index := modCalc(info.Index, info.Participants.Length(), -1)
+	index := info.Participants.PreviousIndex(info.Index)
 	info.CommitChannel <- info.Participants.Get(index)
 
 	info.State <- "time_over"
