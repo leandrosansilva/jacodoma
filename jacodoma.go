@@ -36,8 +36,18 @@ func NewTurnControl(info TurnTimeInfo, participants Participants) *TurnControl {
 	}
 }
 
+func modCalc(index, size, offset int) int {
+	i := (index + size) % size
+
+	if i < 0 {
+		return i + size
+	}
+
+	return i
+}
+
 func (info *TurnControl) NextParticipantIndex() int {
-	return (info.Index + 1) % info.Participants.Length()
+	return modCalc(info.Index, info.Participants.Length(), 1)
 }
 
 func (info *TurnControl) HurryUp() {
@@ -45,8 +55,10 @@ func (info *TurnControl) HurryUp() {
 }
 
 func (info *TurnControl) TimeIsOver() {
-	fmt.Printf("Commiting participant with the index: %d\n", info.Index)
-	info.CommitChannel <- info.Participants.Get(info.Index)
+	// FIXME: extremely dirty workaround due design errors
+	index := modCalc(info.Index, info.Participants.Length(), -1)
+	info.CommitChannel <- info.Participants.Get(index)
+
 	info.State <- "time_over"
 }
 
@@ -55,8 +67,6 @@ func (info *TurnControl) ParticipantStarts() {
 }
 
 func (info *TurnControl) StartsWaitingNextParticipant(index int) {
-	fmt.Printf("Changing current index from %d to %d\n", info.Index, index)
-
 	info.State <- "waiting_participant"
 
 	info.ParticipantIndexChannel <- info.Index
@@ -191,10 +201,6 @@ func (this *QmlGui) Run(config *ProjectConfig) error {
 				case this.ctrl.State = <-this.info.State:
 					qml.Changed(this.ctrl, &this.ctrl.State)
 				case this.ctrl.CurrentParticipantIndex = <-this.info.ParticipantIndexChannel:
-					fmt.Printf("Notifying the UI with index: %d\n", this.ctrl.CurrentParticipantIndex)
-					if this.ctrl.CurrentParticipantIndex < 0 {
-						panic("Wrong index!")
-					}
 					qml.Changed(this.ctrl, &this.ctrl.CurrentParticipantIndex)
 				}
 			}
@@ -290,8 +296,6 @@ func main() {
 	go func() {
 		for {
 			participant := <-control.CommitChannel
-
-			fmt.Printf("Participant to commit: %s\n", participant)
 
 			meta := CreateCommitMetadata(participant.Name, participant.Email, time.Now())
 
